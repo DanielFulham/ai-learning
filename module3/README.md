@@ -55,6 +55,11 @@ python app.py
 python llm_test.py
 ```
 
+<img width="1058" height="517" alt="image" src="https://github.com/user-attachments/assets/9a124f97-ead6-46da-8191-d22dbe49a0bc" />
+
+<img width="1053" height="506" alt="image" src="https://github.com/user-attachments/assets/1e73d8c9-2a73-42cc-ae43-48c284592616" />
+
+
 ## Planned Extension
 
 Port to OpenAI locally (Watsonx credentials only available in IBM cloud environment).
