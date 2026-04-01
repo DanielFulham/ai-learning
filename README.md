@@ -21,6 +21,7 @@ my transition from Engineering Manager to AI Integration Engineer.
 |--------|-----|-------|--------------|
 | Course 1 - Module 1 | Prompt Engineering and LangChain PromptTemplates | [lab1-notes.md](course-1-genai-fundamentals/lab1-notes.md) | LCEL chains, JsonOutputParser, prompting techniques |
 | Course 1 - Module 2 | Build Smarter AI Apps: Empower LLMs with LangChain | [lab2-notes.md](course-1-genai-fundamentals/lab2-notes.md) | Output parsers, RAG retrieval, memory, chains, ReAct agents |
+| Course 1 - Module 3 | Build Your First GenAI Application The Right Way | [lab3-notes.md](module3/lab3-notes.md) | Flask + LangChain, multi-model comparison, Pydantic structured outputs |
 
 
 ## Production Notes
@@ -35,4 +36,12 @@ Things that also matter in production:
   they silently return bad output.
 - Temperature controls creativity, not verbosity. Low temperature models still hallucinate — they just do it consistently.
 - Retrieval quality determines LLM output quality. The model has no way to know if the context it received is wrong.
-- Match your wrapper type to your model type — passing chat messages to a completion model causes hallucinated conversation turns.
+- Match your wrapper type to your model type — passing chat messages to a completion model causes hallucinated conversation turns
+- Each LLM family requires different special token formatting — `ChatPromptTemplate` 
+  handles this automatically. Never manage special tokens manually in production.
+- `{format_prompt}` must be injected into the system block of the template, 
+  not the user block — otherwise the model ignores JSON formatting instructions.
+- `JsonOutputParser` returns a Python dict, not an AIMessage — access fields 
+  directly, no `.content`.
+- Granite produces the cleanest structured output of the IBM-hosted models tested.
+  Prefer it for structured output tasks over Llama or Mistral.
