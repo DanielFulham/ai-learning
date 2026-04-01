@@ -19,9 +19,9 @@ my transition from Engineering Manager to AI Integration Engineer.
 ## Labs
 | Course | Lab | Notes | Key Concepts |
 |--------|-----|-------|--------------|
-| Course 1 - Module 1 | Prompt Engineering and LangChain PromptTemplates | [lab1-notes.md](course-1-genai-fundamentals/lab1-notes.md) | LCEL chains, JsonOutputParser, prompting techniques |
-| Course 1 - Module 2 | Build Smarter AI Apps: Empower LLMs with LangChain | [lab2-notes.md](course-1-genai-fundamentals/lab2-notes.md) | Output parsers, RAG retrieval, memory, chains, ReAct agents |
-| Course 1 - Module 3 | Build Your First GenAI Application The Right Way | [lab3-notes.md](module3/lab3-notes.md) | Flask + LangChain, multi-model comparison, Pydantic structured outputs |
+| Course 1 - Module 1 | Prompt Engineering and LangChain PromptTemplates | [lab1-notes.md](lab1-notes.md) | LCEL chains, JsonOutputParser, prompting techniques |
+| Course 1 - Module 2 | Build Smarter AI Apps: Empower LLMs with LangChain | [lab2-notes.md](lab2notes.md) | Output parsers, RAG retrieval, memory, chains, ReAct agents |
+| Course 1 - Module 3 | Build Your First GenAI Application The Right Way | [lab3-notes.md](lab3notes.md) | Flask + LangChain, multi-model comparison, Pydantic structured outputs |
 
 
 ## Production Notes
