@@ -1,0 +1,162 @@
+# Course 2 — Lab 5: Set Up a Simple Gradio Interface to Interact with Your Models
+
+## Lab Overview
+
+**Course:** IBM RAG and Agentic AI Professional Certificate — Course 2  
+**Lab:** Set Up a Simple Gradio Interface to Interact with Your Models  
+**Completed:** 4 April 2026  
+**Time taken:** ~2 hours
+
+Gradio as a UI layer over an IBM Watsonx LLM. Covers the core `gr.Interface` pattern, common input/output components, and wiring a Watsonx LLM to a Gradio web interface.
+
+---
+
+## Key Concepts
+
+### What Gradio Is
+
+Gradio is a rapid prototyping UI layer — not a production frontend framework. You define inputs, outputs, and a Python function, and Gradio handles the web server and event binding.
+
+```python
+demo = gr.Interface(
+    fn=your_function,   # your entire application logic lives here
+    inputs=...,
+    outputs=...
+)
+demo.launch()
+```
+
+`fn` is the only thing that matters architecturally. Gradio doesn't care what's inside it — it could be a two-line string operation or a full LangChain RAG pipeline. That decoupling is what makes it useful for prototyping.
+
+**Production context:** You'd use Gradio for internal demos, stakeholder POCs, and validating AI behaviour before committing to a proper frontend. The Officeworks JD mentions "build full-stack infrastructure for AI prototypes" — this is that workflow.
+
+---
+
+### Common Input/Output Components
+
+| Component | Use |
+|---|---|
+| `gr.Textbox()` | Text input or output. `lines=` controls height, `placeholder=` adds hint text. |
+| `gr.Number()` | Numeric input or output. |
+| `gr.Slider()` | Numeric range selector. Set `step=1` for integers. |
+| `gr.Dropdown()` | Single or multi-select list. Set `multiselect=True` for multiple. |
+| `gr.CheckboxGroup()` | Multiple selection from a predefined list. |
+| `gr.Radio()` | Force single selection. |
+| `gr.Checkbox()` | Boolean toggle. |
+| `gr.File()` | File upload. Returns file path(s) to the backend function. |
+| `gr.Image()` | Image upload. `type="pil"` returns a PIL Image object. |
+| `gr.Label()` | Classification output. `num_top_classes=3` limits displayed classes. |
+
+For LLM applications the output is almost always `gr.Textbox()` or just `"text"`.
+
+---
+
+### Wiring Gradio to a Watsonx LLM
+
+The full pattern — model initialisation, response function, Gradio interface:
+
+```python
+from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
+from langchain_ibm import WatsonxLLM
+from dotenv import load_dotenv
+import os
+import gradio as gr
+
+load_dotenv()
+
+model_id = 'ibm/granite-4-h-small'
+
+parameters = {
+    GenParams.MAX_NEW_TOKENS: 512,
+    GenParams.TEMPERATURE: 0.5,
+}
+
+watsonx_llm = WatsonxLLM(
+    model_id=model_id,
+    url="https://us-south.ml.cloud.ibm.com",
+    apikey=os.getenv("WATSONX_APIKEY"),
+    project_id=os.getenv("WATSONX_PROJECT_ID"),
+    params=parameters,
+)
+
+def generate_response(prompt_txt):
+    response = watsonx_llm.invoke(prompt_txt)
+    return response
+
+chat_application = gr.Interface(
+    fn=generate_response,
+    flagging_mode="never",
+    inputs=gr.Textbox(label="Input", lines=2, placeholder="Type your question here..."),
+    outputs=gr.Textbox(label="Output"),
+    title="Watsonx.ai Chatbot",
+    description="Ask any question and the chatbot will try to answer."
+)
+
+chat_application.launch()
+```
+
+---
+
+## Bugs Hit & Fixed
+
+| Bug | Cause | Fix |
+|---|---|---|
+| `source: not recognized` | Lab uses bash syntax, running in PowerShell | Use `my_env\Scripts\Activate.ps1` to activate venv |
+| `ModuleNotFoundError: No module named 'gradio'` | Venv not activated | Activate venv first, then run script |
+| `pydantic` build failure requiring Rust | Lab pins `pydantic==2.10.6`, no pre-built wheel for Python 3.11 on Windows | Drop pydantic pin, let it resolve as a dependency |
+| `cannot import name 'HfFolder'` | Removed in newer `huggingface_hub` versions, unused in lab code | Delete the import |
+| `TypeError: BlockContext.__init__() got an unexpected keyword argument 'allow_flagging'` | `allow_flagging` renamed in newer Gradio | Replace with `flagging_mode="never"` |
+| Variable shadowing in `generate_response()` | Local variable named same as the function | Renamed local variable to `response` |
+
+---
+
+## Local vs Lab Environment
+
+The lab runs in a Linux cloud IDE with bash. On Windows PowerShell:
+
+| Bash (lab) | PowerShell (local) |
+|---|---|
+| `source my_env/bin/activate` | `my_env\Scripts\Activate.ps1` |
+| `python3.11 script.py` | `python script.py` (venv handles version) |
+| `\` line continuation in pip install | Single-line pip install command |
+
+The lab uses `project_id="skills-network"` as a free auth shortcut only available in their cloud IDE. Locally, use a real IBM Cloud API key stored in `.env` and loaded via `python-dotenv`.
+
+---
+
+## Key Classes Reference
+
+```python
+import gradio as gr
+
+# Core interface
+gr.Interface(fn, inputs, outputs, title, description, flagging_mode)
+gr.launch()
+
+# Input components
+gr.Textbox(label, lines, placeholder)
+gr.Number()
+gr.Slider(min, max, value, step, label)
+gr.Dropdown(choices, label, multiselect)
+gr.CheckboxGroup(choices, label)
+gr.Radio(choices, label)
+gr.Checkbox(label)
+gr.File()
+gr.Image(type="pil")
+
+# Output components
+gr.Textbox(label)
+gr.Label(num_top_classes)
+```
+
+---
+
+## Production Notes
+
+**`gr.Interface` is single-turn.** Each submission is independent — no conversation history. For a chatbot with memory use `gr.ChatInterface`, which handles history automatically and passes it into your function.
+
+**Gradio is not a production frontend.** Use it to validate AI behaviour, demo to stakeholders, and build internal tooling. For end-user facing interfaces, wrap the backend in FastAPI and build a proper frontend against it.
+
+**The lab's pinned package versions are brittle.** Built for Python 3.11 on Linux. On Windows with newer Python, drop the pins and let pip resolve compatible versions — the concepts are identical regardless of minor version differences.
+
+**`.env` must be in `.gitignore`.** Never commit API keys.
