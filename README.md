@@ -10,7 +10,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 
 - Course 1: Develop Generative AI Applications: Get Started ✅
 - Course 2: Build RAG Applications: Get Started ✅
-- Course 3: Vector Databases for RAG: An Introduction (in progress)
+- Course 3: Vector Databases for RAG: An Introduction (in progress — Module 1 complete)
 - Course 4: Advanced RAG with Vector Databases and Retrievers
 - Course 5: Build Multimodal Generative AI Applications
 - Course 6: Fundamentals of Building AI Agents
@@ -29,6 +29,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 | Course 2 - Module 2 | Set Up a Simple Gradio Interface to Interact with Your Models | [lab5notes-course2-module2.md](lab5notes-course2-module2.md) | Gradio Interface, common components, wiring Gradio to a Watsonx LLM |
 | Course 2 - Module 3 | Build an AI Icebreaker Bot with LlamaIndex & IBM Granite | [lab6notes-course2-module3.md](lab6notes-course2-module3.md) | LlamaIndex RAG pipeline, SentenceSplitter, VectorStoreIndex, QueryEngine, custom PromptTemplate, LlamaIndex IBM integrations |
 | Course 3 - Module 1 | Similarity Search by Hand | [lab7notes-c3-m1-similarity-search.md](lab7notes-c3-m1-similarity-search.md) | L2 distance, dot product, cosine similarity, normalisation, similarity search pipeline |
+| Course 3 - Module 1 | Similarity Search on Text Using Chroma DB and Python | [lab8notes-c3-m1-similarity-search-chroma.md](lab8notes-c3-m1-similarity-search-chroma.md) | Direct ChromaDB client, HNSW cosine config, multi-query batching, nested results iteration |
 
 
 ## Production Notes
