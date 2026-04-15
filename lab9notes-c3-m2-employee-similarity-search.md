@@ -259,3 +259,8 @@ pytest tests/ -v
 
 **Note:** Integration tests require `chromadb` and `sentence-transformers` installed 
 in the venv. Not suitable for CI without those dependencies available.
+
+**CI path for integration tests:**
+- Option 1 — mock the embedding function in the fixture, removing the sentence-transformers dependency entirely
+- Option 2 — add a CI setup step that installs the dependencies and downloads the model before running tests
+- Option 3 — separate integration tests into their own pytest mark (`@pytest.mark.integration`) and skip them in CI by default
