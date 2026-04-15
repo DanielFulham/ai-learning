@@ -17,6 +17,8 @@ class BookRepository(BookRepositoryInterface):
         )
 
     def add_books(self, collection, books: list) -> None:
+        if not books:
+            return
         collection.add(
             ids=[book.id for book in books],
             documents=build_book_documents(books),
