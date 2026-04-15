@@ -1,13 +1,13 @@
 """
 Shamrock Rovers FC — Fan Segmentation Demo
 ==========================================
-Proof of concept for the IT volunteer call.
+Proof of concept
 
 Shows how vector similarity search + metadata filtering
 could work on top of Supporter 360 fan data.
 
 Data here is fictional but mirrors the shape of what
-Future Ticketing + GoCardless + Shopify would produce.
+Ticketing + Direct Debit + Shop would produce.
 
 """
 
