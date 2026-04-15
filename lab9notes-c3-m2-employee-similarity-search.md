@@ -226,3 +226,41 @@ explicitly inherit from the interface it implements.
 **Free-hand extension:**
 - `books_search/` — full Onion architecture books search project
 - `books_search/books_advanced_search.py` — entry point
+
+---
+
+## Test Suite
+
+31 tests across all layers, all passing. Run with:
+
+```powershell
+pytest tests/ -v
+```
+
+**Coverage by layer:**
+
+| Layer | File | Tests | What's covered |
+|---|---|---|---|
+| Domain | `test_book.py` | 3 | Book creation, `to_document()`, `to_metadata()` |
+| Application | `test_book_document_builder.py` | 5 | Document and metadata builder functions, ID exclusion |
+| Application | `test_book_loader.py` | 2 | List type, length, first book field values |
+| Application | `test_book_search_service.py` | 12 | All search methods — happy paths and empty result unhappy paths |
+| Infra | `test_book_repository.py` | 4 | Collection creation config, add books, duplicate name, empty list guard |
+| Integration | `test_books_advanced_search.py` | 5 | Full pipeline — document count, similarity search, genre filter, rating filter, combined search |
+
+**Key patterns used:**
+
+- `@pytest.fixture` for shared test data — equivalent of `[SetUp]` in NUnit
+- `Mock()` from `unittest.mock` for isolating infra dependencies
+- `yield` fixture for integration test teardown — creates and deletes ChromaDB collection per test
+- `side_effect` for testing exception paths
+- `assert_called_once_with` for verifying exact call signatures
+- `assert_not_called` for verifying guards (empty list check in repository)
+
+**Note:** Integration tests require `chromadb` and `sentence-transformers` installed 
+in the venv. Not suitable for CI without those dependencies available.
+
+**CI path for integration tests:**
+- Option 1 — mock the embedding function in the fixture, removing the sentence-transformers dependency entirely
+- Option 2 — add a CI setup step that installs the dependencies and downloads the model before running tests
+- Option 3 — separate integration tests into their own pytest mark (`@pytest.mark.integration`) and skip them in CI by default
