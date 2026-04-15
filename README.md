@@ -10,7 +10,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 
 - Course 1: Develop Generative AI Applications: Get Started ✅
 - Course 2: Build RAG Applications: Get Started ✅
-- Course 3: Vector Databases for RAG: An Introduction (in progress — Module 1 complete)
+- Course 3: Vector Databases for RAG: An Introduction (in progress — Module 2 in progress)
 - Course 4: Advanced RAG with Vector Databases and Retrievers
 - Course 5: Build Multimodal Generative AI Applications
 - Course 6: Fundamentals of Building AI Agents
@@ -30,6 +30,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 | Course 2 - Module 3 | Build an AI Icebreaker Bot with LlamaIndex & IBM Granite | [lab6notes-course2-module3.md](lab6notes-course2-module3.md) | LlamaIndex RAG pipeline, SentenceSplitter, VectorStoreIndex, QueryEngine, custom PromptTemplate, LlamaIndex IBM integrations |
 | Course 3 - Module 1 | Similarity Search by Hand | [lab7notes-c3-m1-similarity-search.md](lab7notes-c3-m1-similarity-search.md) | L2 distance, dot product, cosine similarity, normalisation, similarity search pipeline |
 | Course 3 - Module 1 | Similarity Search on Text Using Chroma DB and Python | [lab8notes-c3-m1-similarity-search-chroma.md](lab8notes-c3-m1-similarity-search-chroma.md) | Direct ChromaDB client, HNSW cosine config, multi-query batching, nested results iteration |
+| Course 3 - Module 2 | Similarity Search on Employee Records using Python and Chroma DB | [lab9notes-c3-m2-employee-similarity-search.md](lab9notes-c3-m2-employee-similarity-search.md) | Structured data serialisation, dual-layer pattern, combined search, Onion architecture |
 
 
 ## Production Notes
@@ -60,3 +61,10 @@ Things that also matter in production:
 - LlamaIndex `VectorStoreIndex` defaults to in-memory storage. Persist with `index.storage_context.persist()` and load on cold start for Lambda deployments.
 - Use LangChain for agents, multi-step pipelines, and tool use. Use LlamaIndex for pure document Q&A prototypes where you want less boilerplate. Never mix frameworks in the same pipeline.
 - Gradio chat history format changed in newer versions — old `[[user, bot]]` list-of-lists format replaced by `[{"role": "user", "content": "..."}]` dict format. Always check Gradio changelog when upgrading.
+
+**After Employee Similarity Search lab (Course 3 - Module 2):**
+- Structured data must be serialised to natural language before embedding — embedding models are trained on text, not JSON or key-value pairs. Numeric attributes (ratings, counts, years) belong in metadata for filtering, not in the embedded document.
+- `collection.get()` returns flat results, `collection.query()` returns nested results grouped by query. Index with `[i]` vs `[0][i]` respectively — the most common ChromaDB indexing bug.
+- `where` on delete has no confirmation and no row count — resolve IDs first with `get()`, inspect, then delete by ID.
+- `Protocol` is the Pythonic interface — structural typing, no explicit inheritance required. Prefer over `ABC` for clean layer boundaries in Onion architecture.
+- Python has no DI container — wire interfaces to concretes in a composition root (`container.py`). Entry point imports the interface and the factory, never the concrete class directly.
