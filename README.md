@@ -31,6 +31,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 | Course 3 - Module 1 | Similarity Search by Hand | [lab7notes-c3-m1-similarity-search.md](lab7notes-c3-m1-similarity-search.md) | L2 distance, dot product, cosine similarity, normalisation, similarity search pipeline |
 | Course 3 - Module 1 | Similarity Search on Text Using Chroma DB and Python | [lab8notes-c3-m1-similarity-search-chroma.md](lab8notes-c3-m1-similarity-search-chroma.md) | Direct ChromaDB client, HNSW cosine config, multi-query batching, nested results iteration |
 | Course 3 - Module 2 | Similarity Search on Employee Records using Python and Chroma DB | [lab9notes-c3-m2-employee-similarity-search.md](lab9notes-c3-m2-employee-similarity-search.md) | Structured data serialisation, dual-layer pattern, combined search, Onion architecture |
+| Course 3 - Module 2 | Food Recommendation System Using Chroma DB | [lab10notes-c3-m2-recommend-system-chroma.md](lab10notes-c3-m2-recommend-system-chroma.md) | RAG chatbot, metadata filtering, similarity threshold, two-query pattern, conversation history |
 
 
 ## Production Notes
@@ -68,3 +69,16 @@ Things that also matter in production:
 - `where` on delete has no confirmation and no row count — resolve IDs first with `get()`, inspect, then delete by ID.
 - `Protocol` is the Pythonic interface — structural typing, no explicit inheritance required. Prefer over `ABC` for clean layer boundaries in Onion architecture.
 - Python has no DI container — wire interfaces to concretes in a composition root (`container.py`). Entry point imports the interface and the factory, never the concrete class directly.
+
+**After Food Recommendation System lab (Course 3 - Module 2):**
+- Vector search always returns a result — there is no concept of "no match." Apply a similarity threshold post-retrieval to prevent weak matches reaching the LLM. Threshold value should be calibrated from real query data, not guessed.
+- Decouple result count from quality threshold — `n_results` controls how many ChromaDB returns, the threshold controls how many you show. Two independent knobs tuned separately.
+- Metadata filters reduce the candidate pool before similarity search runs — overly restrictive filters return the best of a bad pool, not the best overall. Post-filter after a wider search when recall matters more than precision.
+- Metadata filter values are exact string match, case sensitive — normalise at ingest time. Use uppercase controlled enum values for category-like fields (`"WOMENS_TICKETS"` not `"womens_tickets"`).
+- Raw user input should never go directly into a metadata filter — extract intent first, map to a controlled value, then filter.
+- Embedding model and generation model are completely independent — swap the generation model freely, never swap the embedding model without rebuilding the entire index.
+- Pin embedding model to a specific named version — floating aliases can change silently and cause retrieval regression with no error thrown. Store the model name and version in collection metadata at index time.
+- For Lambda: use an external embedding API (Bedrock Titan or Cloudflare Workers AI) — local SentenceTransformer models exceed the Lambda layer size limit.
+- Conversation history tracked in a list is not the same as conversation memory — the list must be passed into the LLM prompt to have any effect. Three previous turns in-memory covers most conversational use cases without requiring DynamoDB.
+- Two-query pattern for split UX: run filtered and unfiltered searches in parallel, deduplicate results by ID before display.
+- Pydantic models for document schema validation — fail loudly at ingest time on malformed data rather than silently storing bad embeddings that return wrong answers later.

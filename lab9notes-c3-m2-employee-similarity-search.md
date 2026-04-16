@@ -1,5 +1,5 @@
 # Lab 9 Notes — Similarity Search on Employee Records using Python and Chroma DB
-## Course 3, Module 2
+## Course 3, Module 2 Lab 1
 
 ---
 
