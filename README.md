@@ -10,8 +10,8 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 
 - Course 1: Develop Generative AI Applications: Get Started ✅
 - Course 2: Build RAG Applications: Get Started ✅
-- Course 3: Vector Databases for RAG: An Introduction (in progress — Module 2 in progress)
-- Course 4: Advanced RAG with Vector Databases and Retrievers
+- Course 3: Vector Databases for RAG: An Introduction ✅
+- Course 4: Advanced RAG with Vector Databases and Retrievers 🔄 (Module 1 in progress)
 - Course 5: Build Multimodal Generative AI Applications
 - Course 6: Fundamentals of Building AI Agents
 - Course 7: Agentic AI with LangChain and LangGraph
@@ -32,6 +32,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 | Course 3 - Module 1 | Similarity Search on Text Using Chroma DB and Python | [lab8notes-c3-m1-similarity-search-chroma.md](lab8notes-c3-m1-similarity-search-chroma.md) | Direct ChromaDB client, HNSW cosine config, multi-query batching, nested results iteration |
 | Course 3 - Module 2 | Similarity Search on Employee Records using Python and Chroma DB | [lab9notes-c3-m2-employee-similarity-search.md](lab9notes-c3-m2-employee-similarity-search.md) | Structured data serialisation, dual-layer pattern, combined search, Onion architecture |
 | Course 3 - Module 2 | Food Recommendation System Using Chroma DB | [lab10notes-c3-m2-recommend-system-chroma.md](lab10notes-c3-m2-recommend-system-chroma.md) | RAG chatbot, metadata filtering, similarity threshold, two-query pattern, conversation history |
+| Course 4 - Module 1 | Build a Smarter Search with LangChain Context Retrieval | [lab11notes-c4-m1-LangChain-Context-Retrieval.md](lab11notes-c4-m1-LangChain-Context-Retrieval.md) | Vector store retriever, MMR, similarity threshold, multi-query retriever, self-querying retriever, parent document retriever |
 
 
 ## Production Notes
@@ -40,7 +41,7 @@ Things that also matter in production:
 
 - LLMs are non-deterministic by default — same prompt, different output.
 - JsonOutputParser requires your prompt to explicitly request JSON output — prompt and parser must agree on format. Use `get_format_instructions()` over custom instructions.
-- Model versions deprecate. Always check supported models if you hit a `WMLClientError` on `model_id`.
+- Model versions deprecate. Always check supported models if you hit a `WMLClientError` on `model_id`. Same applies to Anthropic — `claude-haiku-20240307` does not exist, use `claude-haiku-4-5`.
 - Output quality monitoring is essential — LLM failures don't throw exceptions, they silently return bad output.
 - Temperature controls creativity, not verbosity. Low temperature models still hallucinate — they just do it consistently.
 - Retrieval quality determines LLM output quality. The model has no way to know if the context it received is wrong.
@@ -82,3 +83,17 @@ Things that also matter in production:
 - Conversation history tracked in a list is not the same as conversation memory — the list must be passed into the LLM prompt to have any effect. Three previous turns in-memory covers most conversational use cases without requiring DynamoDB.
 - Two-query pattern for split UX: run filtered and unfiltered searches in parallel, deduplicate results by ID before display.
 - Pydantic models for document schema validation — fail loudly at ingest time on malformed data rather than silently storing bad embeddings that return wrong answers later.
+
+**After LangChain Context Retrieval lab (Course 4 - Module 1):**
+- LangChain retriever interface vs direct ChromaDB — direct gives transparency and debuggability, LC interface gives composability and access to the advanced retriever ecosystem. Production almost always wants the interface. Build direct first to understand what's under the hood, then migrate to the interface.
+- MMR `lambda_mult` is a tunable dial — 0.5 default, 0.7 for focused FAQ domains (lean relevance), lower for broad exploratory search (lean diversity). Calibrate from real query data not guesswork.
+- `similarity_score_threshold` is the native LC implementation of the manual quality gate built in SRMC-995. Same concept, standardised interface.
+- Multi-query retriever changes the text going into the query embedding, not the retrieval mechanism. Same cosine similarity, different starting vectors. The LLM generates reformulations — it does not see the index or documents.
+- Multi-query is query expansion. EnsembleRetriever is method combination. Different tools solving different problems.
+- Self-query retriever depends on the LLM generating valid, correctly typed filter expressions — not guaranteed. Requires retry logic and fallback to unfiltered search in production. Numeric type coercion is a known fragility with older LangChain versions and newer Claude models.
+- `lark` is a required dependency for self-query retriever — not in the standard LangChain install. Add to requirements explicitly.
+- Parent document retriever uses two stores — Chroma vector store for child chunk embeddings, InMemoryStore docstore for parent documents. `add_documents()` populates both simultaneously. Do not use `Chroma.from_documents()` for this pattern.
+- LongContextReorder always comes after retrieval, never before. Reorder what you have, not what you're about to fetch.
+- Load dotenv before llm() is called — the LLM instance captures the API key at construction time. Stale instances hold no key even after dotenv loads.
+- `| tail -n 1` is Linux only. Remove from all pip install commands when running on Windows.
+- `wget` is Linux only. Use `urllib.request.urlretrieve()` for file downloads on Windows.
