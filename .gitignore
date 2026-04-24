@@ -1,2 +1,9 @@
 course2-module3-lab/icebreaker/README.md
 .vscode/launch.json
+venv/
+.env
+my_env/
+__pycache__/
+*.pyc
+*.pem
+.vscode/settings.json
