@@ -11,7 +11,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 - Course 1: Develop Generative AI Applications: Get Started ✅
 - Course 2: Build RAG Applications: Get Started ✅
 - Course 3: Vector Databases for RAG: An Introduction ✅
-- Course 4: Advanced RAG with Vector Databases and Retrievers 🔄 (Module 1 in progress)
+- Course 4: Advanced RAG with Vector Databases and Retrievers 🔄 (Module 1 — practice quiz and graded quiz remaining)
 - Course 5: Build Multimodal Generative AI Applications
 - Course 6: Fundamentals of Building AI Agents
 - Course 7: Agentic AI with LangChain and LangGraph
@@ -33,6 +33,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 | Course 3 - Module 2 | Similarity Search on Employee Records using Python and Chroma DB | [lab9notes-c3-m2-employee-similarity-search.md](lab9notes-c3-m2-employee-similarity-search.md) | Structured data serialisation, dual-layer pattern, combined search, Onion architecture |
 | Course 3 - Module 2 | Food Recommendation System Using Chroma DB | [lab10notes-c3-m2-recommend-system-chroma.md](lab10notes-c3-m2-recommend-system-chroma.md) | RAG chatbot, metadata filtering, similarity threshold, two-query pattern, conversation history |
 | Course 4 - Module 1 | Build a Smarter Search with LangChain Context Retrieval | [lab11notes-c4-m1-LangChain-Context-Retrieval.md](lab11notes-c4-m1-LangChain-Context-Retrieval.md) | Vector store retriever, MMR, similarity threshold, multi-query retriever, self-querying retriever, parent document retriever |
+| Course 4 - Module 1 | Explore Advanced Retrievers in LlamaIndex | [lab12notes-c4-m1-advanced-retrievers-llamaindex.md](lab12notes-c4-m1-advanced-retrievers-llamaindex.md) | VectorIndexRetriever, BM25Retriever, DocumentSummaryIndex (LLM + embedding), AutoMergingRetriever, RecursiveRetriever, QueryFusionRetriever (RRF/relative score/distribution-based), hybrid retrieval, production RAG pipeline with evaluation harness |
 
 
 ## Production Notes
@@ -97,3 +98,15 @@ Things that also matter in production:
 - Load dotenv before llm() is called — the LLM instance captures the API key at construction time. Stale instances hold no key even after dotenv loads.
 - `| tail -n 1` is Linux only. Remove from all pip install commands when running on Windows.
 - `wget` is Linux only. Use `urllib.request.urlretrieve()` for file downloads on Windows.
+
+**After LlamaIndex Advanced Retrievers lab (Course 4 - Module 1):**
+- LlamaIndex makes the retriever/query engine separation explicit — `index.as_retriever()` returns nodes, `RetrieverQueryEngine(retriever=...)` adds synthesis. LangChain's `RetrievalQA` bundles both. Understanding the separation makes custom pipelines easier to reason about.
+- BM25 is 30 years old (1994) — standard in Elasticsearch, Lucene, Solr. Deterministic, no embedding calls, no API cost. Use as a pre-filter before vector search on large corpora to reduce the candidate set before the embedding call runs.
+- BM25 scores are unbounded positive floats, cosine similarity scores are 0-1. Cannot combine directly — normalise each list independently before fusion.
+- When combining retrievers with weighted average fusion, match by text content not node ID — the same document has different node IDs in different retrievers.
+- RRF (Reciprocal Rank Fusion) is the default fusion strategy — position-based, scale-invariant, no score calibration required. Relative Score and Distribution-Based require trust in score calibration. RRF is robust when you don't know how well-calibrated your embedding model is.
+- `DocumentSummaryIndex` calls the LLM at index build time to generate summaries — budget this as an offline cost, not a per-query cost. Use the embedding-based retriever variant in production (deterministic, cheaper per query). Use the LLM-based variant as a development diagnostic tool only.
+- `AutoMergingRetriever` needs two objects: `base_retriever` (does the vector search) and `storage_context` (navigates the parent/child hierarchy). Neither works without the other in this pattern.
+- `RecursiveRetriever` requires a meaningful reference graph at index time. Synthetic positional references (doc_0 references doc_1) demonstrate the mechanism but not the value. Real value requires real citations, links, or intentional cross-references in metadata.
+- `QueryFusionRetriever` combines multi-retriever fusion AND multi-query generation in one class. LangChain keeps these as separate classes (`EnsembleRetriever` and `MultiQueryRetriever`). LlamaIndex's fusion strategy options (RRF, relative score, distribution-based) are more sophisticated than LangChain's weighted average.
+- The cost architecture hierarchy: BM25 (free) → embedding call (cheap) → small LLM for reformulation/filtering (cheap) → large LLM for synthesis (expensive). Never run an expensive operation on a candidate set a cheaper operation could have filtered first.
