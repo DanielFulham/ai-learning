@@ -11,7 +11,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 - Course 1: Develop Generative AI Applications: Get Started ✅
 - Course 2: Build RAG Applications: Get Started ✅
 - Course 3: Vector Databases for RAG: An Introduction ✅
-- Course 4: Advanced RAG with Vector Databases and Retrievers 🔄 (Module 1 — practice quiz and graded quiz remaining)
+- Course 4: Advanced RAG with Vector Databases and Retrievers 🔄 (Module 2 in progress)
 - Course 5: Build Multimodal Generative AI Applications
 - Course 6: Fundamentals of Building AI Agents
 - Course 7: Agentic AI with LangChain and LangGraph
@@ -35,6 +35,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 | Course 4 - Module 1 | Build a Smarter Search with LangChain Context Retrieval | [lab11notes-c4-m1-LangChain-Context-Retrieval.md](lab11notes-c4-m1-LangChain-Context-Retrieval.md) | Vector store retriever, MMR, similarity threshold, multi-query retriever, self-querying retriever, parent document retriever |
 | Course 4 - Module 1 | Explore Advanced Retrievers in LlamaIndex | [lab12notes-c4-m1-advanced-retrievers-llamaindex.md](lab12notes-c4-m1-advanced-retrievers-llamaindex.md) | VectorIndexRetriever, BM25Retriever, DocumentSummaryIndex (LLM + embedding), AutoMergingRetriever, RecursiveRetriever, QueryFusionRetriever (RRF/relative score/distribution-based), hybrid retrieval, production RAG pipeline with evaluation harness |
 | Course 4 - Module 2 | Semantic Similarity with FAISS | [lab13notes-c4-m2-faiss-semantic-similarity.md](lab13notes-c4-m2-faiss-semantic-similarity.md) | FAISS IndexFlatL2, USE embeddings, manual position mapping, embed→store→search separation |
+| Course 4 - Module 2 | AI-Powered YouTube Summariser and QA Tool | [lab14notes-c4-m2-QA-Tool-RAG-LC-FAISS.md](lab14notes-c4-m2-QA-Tool-RAG-LC-FAISS.md) | FAISS via LangChain wrapper, MiniLM embeddings, LCEL chains, gr.State(), Onion architecture, dependency injection, pytest with fixtures |
 
 
 ## Production Notes
@@ -111,3 +112,14 @@ Things that also matter in production:
 - `RecursiveRetriever` requires a meaningful reference graph at index time. Synthetic positional references (doc_0 references doc_1) demonstrate the mechanism but not the value. Real value requires real citations, links, or intentional cross-references in metadata.
 - `QueryFusionRetriever` combines multi-retriever fusion AND multi-query generation in one class. LangChain keeps these as separate classes (`EnsembleRetriever` and `MultiQueryRetriever`). LlamaIndex's fusion strategy options (RRF, relative score, distribution-based) are more sophisticated than LangChain's weighted average.
 - The cost architecture hierarchy: BM25 (free) → embedding call (cheap) → small LLM for reformulation/filtering (cheap) → large LLM for synthesis (expensive). Never run an expensive operation on a candidate set a cheaper operation could have filtered first.
+
+
+**After YouTube Summariser and QA Tool lab (Course 4 - Module 2):**
+- FAISS via LangChain wrapper (`FAISS.from_texts()`) returns documents directly — no manual position mapping required. Raw FAISS returns indices; the LangChain wrapper abstracts the lookup.
+- `LLMChain` is removed in current LangChain — use LCEL (`prompt | llm`) with `.invoke()`. `.run()` and `.predict()` are also removed. `.content` extracts the string from the returned `AIMessage`.
+- Global state in multi-threaded Gradio is unreliable — use `gr.State()` for explicit state passing between button clicks. Each click runs in a separate thread; globals written in one thread may not be visible in another.
+- Singletons initialised at module import time are cached by Python — `llm` and `embedding_model` constructed once in `config.py` are reused on every subsequent import. No re-initialisation per request.
+- Index building is a one-time offline cost — build the FAISS index when the document is loaded, not on every query. Store in `gr.State()` and reuse.
+- Summarise path and Q&A path are architecturally distinct — summarisation sends the full transcript directly to the LLM (no retrieval). Q&A requires chunking, embedding, and FAISS retrieval first. Never conflate the two.
+- `sys.modules["config"] = Mock()` before importing the entry point prevents singleton initialisation during tests — essential when `config.py` makes API calls or loads models at import time.
+- pytest fixtures replace repeated Mock setup — define shared dependencies once in `@pytest.fixture`, inject by parameter name. Same pattern as `[SetUp]` in NUnit.
