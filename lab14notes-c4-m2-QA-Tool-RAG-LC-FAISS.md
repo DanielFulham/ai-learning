@@ -112,3 +112,30 @@ Open `http://127.0.0.1:7860` in your browser.
 ## Dependency Notes
 
 Significant version conflicts between Gradio, huggingface_hub, transformers, and sentence-transformers. Working pinned versions in `requirements.txt`. Key constraint: `huggingface_hub==1.5.0` to satisfy both Gradio 5.23.0 and transformers.
+
+## Test Suite
+ 
+27 tests across all layers. Run with:
+ 
+```bash
+pytest tests/ -v
+```
+ 
+**Coverage by layer:**
+ 
+| Layer | File | Tests | What's covered |
+|---|---|---|---|
+| Domain | `test_transcript.py` | 8 | `_get_video_id`, `process` (object + dict format), `chunk_transcript` |
+| Infra | `test_vector_store.py` | 4 | `create_faiss_index`, `retrieve` (list, args, default k) |
+| Infra | `test_embedding.py` | 1 | `setup_embedding_model` model name and return type |
+| Infra | `test_llm.py` | 1 | `initialize_llm` model, api_key, max_tokens |
+| Application | `test_summarise.py` | 5 | `_create_summary_prompt`, `summarize_video` (no URL, state population, tuple return) |
+| Application | `test_qa.py` | 6 | `_create_qa_prompt_template`, `answer_question` (no URL, fetch, skip fetch, tuple return) |
+| Entry point | `test_ytbot.py` | 2 | `handle_summarize`, `handle_answer_question` wiring |
+ 
+**Key patterns:**
+ 
+- `@pytest.fixture` for shared dependency setup in application layer tests
+- `Mock()` and `patch()` for isolating infra dependencies
+- `sys.modules["config"] = Mock()` before importing `ytbot` to prevent singleton initialisation during tests
+- `conftest.py` at project root for path resolution — empty file is sufficient
