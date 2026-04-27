@@ -1,176 +1,114 @@
-# Lab 14 Notes — AI-Powered YouTube Summariser and QA Tool
-## Course 4, Module 2 Lab 2
+# Course 4 — Lab 14: AI-Powered YouTube Summariser and QA Tool
+
+RAG pipeline over YouTube video transcripts. Summarises videos and answers questions about their content using FAISS for retrieval, MiniLM for embeddings, and Claude Haiku as the LLM.
+
+Built as part of the IBM RAG and Agentic AI Professional Certificate — Course 4, Module 2.
 
 ---
 
-## What This Lab Covers
+## What It Does
 
-End-to-end RAG pipeline over YouTube video transcripts. Two distinct paths:
-
-- **Summarise** — full transcript sent directly to LLM, no retrieval
-- **Q&A** — transcript chunked, embedded, indexed with FAISS, relevant chunks
-  retrieved before LLM generates answer
-
-Built with LangChain FAISS wrapper, MiniLM embeddings, Claude Haiku via LCEL,
-and Gradio for the UI.
+- **Summarise** — fetches a YouTube transcript and generates a concise summary via Claude Haiku
+- **Q&A** — chunks the transcript, builds a FAISS index, retrieves relevant chunks, and answers specific questions about the video
 
 ---
 
 ## Stack
 
-| Component | Lab (IBM) | This implementation | Reason |
-|---|---|---|---|
-| Embedding model | IBM SLATE-30M | `all-MiniLM-L6-v2` | Local, no API cost, already in Rovers stack |
-| LLM | IBM Granite | Claude Haiku (`claude-haiku-4-5`) | Own credentials, LCEL compatible |
-| Vector store | FAISS | FAISS | Same — LangChain wrapper |
-| UI | Gradio | Gradio | Same |
-
-SLATE-30M = IBM's equivalent of MiniLM-L6-v2. Same role in the pipeline, different provider.
+| Component | Choice | Reason |
+|---|---|---|
+| Embedding model | `all-MiniLM-L6-v2` | Local, no API cost, already in Rovers stack |
+| LLM | Claude Haiku (`claude-haiku-4-5`) | Own credentials, LCEL compatible |
+| Vector store | FAISS via LangChain | `FAISS.from_texts()` — same interface as ChromaDB |
+| UI | Gradio `gr.Blocks` | Sufficient for prototype validation |
 
 ---
 
-## Key Concepts
+## Architecture
 
-### Two Pipeline Paths — Summarise vs Q&A
+Onion architecture — dependencies injected from the composition root (`ytbot.py`). No globals, no cross-layer imports. LLM and embedding model initialised once at startup in `config.py`.
 
-The application has two fundamentally different paths:
-
-**Summarise path:**
 ```
-get_transcript() → process() → full transcript → LLM
-```
-No chunking, no embedding, no FAISS. The full processed transcript is sent
-directly to Claude in one prompt. Summarisation needs the full picture.
-
-**Q&A path:**
-```
-get_transcript() → process() → chunk() → embed() → FAISS index → retrieve() → LLM
-```
-Chunking and retrieval are required for Q&A — the full transcript would exceed
-context limits and dilute relevance. FAISS retrieves only the chunks relevant
-to the specific question.
-
-### FAISS as a LangChain Vector Store
-
-`FAISS.from_texts()` is the LangChain wrapper that handles embed → index in one call:
-
-```python
-from langchain_community.vectorstores import FAISS
-
-faiss_index = FAISS.from_texts(chunks, embedding_model)
+course4-module2-lab-2/
+├── ytbot.py                  — Composition root, Gradio UI, dependency wiring
+├── config.py                 — Singletons: llm, embedding_model, credentials
+├── application/
+│   ├── summarise.py          — summarize_video()
+│   └── qa.py                 — answer_question(), _generate_answer()
+├── domain/
+│   └── transcript.py         — get_transcript(), process(), chunk_transcript()
+├── infra/
+│   ├── embedding.py          — setup_embedding_model()
+│   ├── llm.py                — initialize_llm()
+│   └── vector_store.py       — create_faiss_index(), retrieve()
+├── .env                      — ANTHROPIC_API_KEY (never committed)
+└── requirements.txt
 ```
 
-Returns a LangChain-compatible vector store with `.similarity_search()` built in.
-Equivalent to ChromaDB's `Chroma.from_documents()` — same interface, different
-underlying store.
+### Layer Rules
 
-The manual position mapping from Lab 13 (raw FAISS) is handled internally.
-FAISS returns documents directly, not just indices.
-
-### LCEL Chains Replacing LLMChain
-
-`LLMChain` is removed in current LangChain. LCEL replacement:
-
-```python
-# OLD
-chain = LLMChain(llm=llm, prompt=prompt)
-result = chain.run({"transcript": text})
-
-# NEW
-chain = prompt | llm
-result = chain.invoke({"transcript": text}).content
-```
-
-`ChatAnthropic` returns an `AIMessage` object — `.content` extracts the string.
-
-### Prompt Template — Values Injected at Invoke Time
-
-The prompt template is defined once as a reusable structure. Values are
-injected only at `invoke()` time:
-
-```python
-# Define shape — no data
-prompt = PromptTemplate(
-    input_variables=["transcript"],
-    template="Summarise: {transcript}"
-)
-
-# Wire to LLM — still no data
-chain = prompt | llm
-
-# Inject data at runtime
-result = chain.invoke({"transcript": processed_transcript}).content
-```
-
-The key name in `invoke()` must exactly match `input_variables`. This is the
-contract between the template and the call site.
-
-Hardcoding the value at template definition time would make the chain reusable
-for only one transcript. Keeping it as a placeholder makes the same chain work
-for any video.
-
-### Index Build Once, Query Many Times
-
-The FAISS index should be built once when the transcript is fetched — not
-rebuilt on every question. The current implementation builds it in
-`summarize_video()` and reuses it in `answer_question()` via global state.
-
-```python
-# Built once in summarize_video()
-faiss_index = create_faiss_index(chunks, embedding_model)
-
-# Reused in answer_question() — no rebuild
-answer = generate_answer(user_question, faiss_index, qa_chain)
-```
-
-Same principle as the Rovers chatbot — ChromaDB index built at startup,
-not on every query.
+- `domain/` — pure Python, no framework imports, no AI libraries
+- `infra/` — wraps external libraries (FAISS, HuggingFace, Anthropic)
+- `application/` — orchestrates domain + infra, contains business logic. Private methods prefixed with `_`
+- `config.py` — singletons initialised once at startup, imported by `ytbot.py`
+- `ytbot.py` — wires everything together, Gradio only, no business logic
 
 ---
 
-## Production Notes
+## Two Pipeline Paths
 
-- **Global state in multi-threaded Gradio is unreliable** — Gradio runs each
-  button click in a separate thread. Globals written in one thread may not be
-  visible in another. Use `gr.State()` for explicit state passing in production.
-- **`youtube-transcript-api` v1.2.1 breaking change** — snippets changed from
-  plain dicts to `FetchedTranscriptSnippet` objects. Use `i.text` and `i.start`
-  not `i["text"]` and `i["start"]`. Guard with `hasattr()` if supporting both.
-- **SLATE-30M = MiniLM equivalent** — IBM's embedding model. Same pipeline
-  role, different provider. Swap freely without changing FAISS or LLM code.
-- **Summarise path skips FAISS entirely** — FAISS is only needed for retrieval.
-  Direct LLM summarisation over the full transcript is valid for short videos.
-  For long videos, summarise-via-retrieval or map-reduce chunking would be needed.
-- **`chunk_size` should match source content** — transcript lines are short.
-  Default `chunk_size=200` is oversized. Tuned to 100 for this lab.
-- **IBM lab instructions used Streamlit in description, Gradio in code** —
-  ignore all Streamlit references. The implementation is entirely Gradio.
-- **`LLMChain` is removed in current LangChain** — use LCEL (`prompt | llm`)
-  and `.invoke()`. `.run()` and `.predict()` are also removed.
+**Summarise** — no retrieval, full transcript sent directly to LLM:
+```
+get_transcript() → process() → LLM
+```
+
+**Q&A** — FAISS retrieval before LLM:
+```
+get_transcript() → process() → chunk() → FAISS index → retrieve() → LLM
+```
+
+The FAISS index is built once during summarisation and passed via `gr.State()` to all subsequent Q&A queries — no rebuild per question.
+
+---
+
+## Setup
+
+```bash
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+Create a `.env` file:
+```
+ANTHROPIC_API_KEY=your_key_here
+```
+
+Run:
+```bash
+python ytbot.py
+```
+
+Open `http://127.0.0.1:7860` in your browser.
+
+---
+
+## Key Decisions
+
+**Singletons in `config.py`** — `llm` and `embedding_model` are initialised once when the module is first imported. Python module imports are cached — no re-initialisation on subsequent button clicks.
+
+**`gr.State()` over globals** — Gradio runs each button click in a separate thread. Module-level globals are unreliable across threads. `gr.State()` passes state explicitly between components, eliminating the threading issue entirely.
+
+**Index built once at summarise time** — embedding and indexing is an offline cost paid once when the transcript is fetched, not on every question. The index is stored in `gr.State()` and reused for all Q&A queries.
+
+**Dependency injection via composition root** — `ytbot.py` imports all dependencies and passes them into application functions. Application and domain layers have no knowledge of where their dependencies come from. Same pattern as the books search Onion architecture from Lab 9.
+
+**LCEL over `LLMChain`** — `LLMChain` is removed in current LangChain. `prompt | llm` with `.invoke()` is the current standard.
+
+**MiniLM over IBM SLATE-30M** — same pipeline role, no IBM credentials required, already used in the Rovers chatbot stack.
 
 ---
 
 ## Dependency Notes
 
-This lab has significant dependency conflicts between Gradio,
-huggingface_hub, transformers, and sentence-transformers.
-Working pinned versions:
-
-```
-gradio==5.23.0
-huggingface_hub==1.5.0
-sentence-transformers (latest)
-langchain-huggingface (latest)
-```
-
-The `HfFolder` import error in older Gradio versions is caused by
-`huggingface_hub>=0.30` removing `HfFolder`. Resolved by upgrading to
-Gradio 5.23.0 which no longer references it.
-
----
-
-## Files
-
-- `ytbot.py` — full implementation
-- `.env` — `ANTHROPIC_API_KEY` (never committed)
-- `requirements.txt` — pinned dependencies
+Significant version conflicts between Gradio, huggingface_hub, transformers, and sentence-transformers. Working pinned versions in `requirements.txt`. Key constraint: `huggingface_hub==1.5.0` to satisfy both Gradio 5.23.0 and transformers.
