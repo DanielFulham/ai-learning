@@ -36,7 +36,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 | Course 4 - Module 1 | Explore Advanced Retrievers in LlamaIndex | [lab12notes-c4-m1-advanced-retrievers-llamaindex.md](lab12notes-c4-m1-advanced-retrievers-llamaindex.md) | VectorIndexRetriever, BM25Retriever, DocumentSummaryIndex (LLM + embedding), AutoMergingRetriever, RecursiveRetriever, QueryFusionRetriever (RRF/relative score/distribution-based), hybrid retrieval, production RAG pipeline with evaluation harness |
 | Course 4 - Module 2 | Semantic Similarity with FAISS | [lab13notes-c4-m2-faiss-semantic-similarity.md](lab13notes-c4-m2-faiss-semantic-similarity.md) | FAISS IndexFlatL2, USE embeddings, manual position mapping, embed→store→search separation |
 | Course 4 - Module 2 | AI-Powered YouTube Summariser and QA Tool | [lab14notes-c4-m2-QA-Tool-RAG-LC-FAISS.md](lab14notes-c4-m2-QA-Tool-RAG-LC-FAISS.md) | FAISS via LangChain wrapper, MiniLM embeddings, LCEL chains, gr.State(), Onion architecture, dependency injection, pytest with fixtures |
-| Course 5 - Module 1 | Personal Storyteller with Mistral and gTTS | lab15notes-c5-m1-personal-storyteller.md | LLM→TTS pipeline, Ollama local swap, gTTS, notebook→script refactor, pytest mocking patterns |
+| Course 5 - Module 1 | Personal Storyteller with Mistral and gTTS | [lab15notes-c5-m1-personal-storyteller.md](lab15notes-c5-m1-personal-storyteller.md) | LLM→TTS pipeline, Ollama local swap, gTTS, notebook→script refactor, pytest mocking patterns |
 
 
 ## Production Notes
