@@ -11,8 +11,8 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 - Course 1: Develop Generative AI Applications: Get Started ✅
 - Course 2: Build RAG Applications: Get Started ✅
 - Course 3: Vector Databases for RAG: An Introduction ✅
-- Course 4: Advanced RAG with Vector Databases and Retrievers 🔄 (Module 2 in progress)
-- Course 5: Build Multimodal Generative AI Applications
+- Course 4: Advanced RAG with Vector Databases and Retrievers ✅
+- Course 5: Build Multimodal Generative AI Applications 🔄 (Module 1 in progress)
 - Course 6: Fundamentals of Building AI Agents
 - Course 7: Agentic AI with LangChain and LangGraph
 - Course 8: Agentic AI with LangGraph, CrewAI, AutoGen and BeeAI
@@ -36,6 +36,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 | Course 4 - Module 1 | Explore Advanced Retrievers in LlamaIndex | [lab12notes-c4-m1-advanced-retrievers-llamaindex.md](lab12notes-c4-m1-advanced-retrievers-llamaindex.md) | VectorIndexRetriever, BM25Retriever, DocumentSummaryIndex (LLM + embedding), AutoMergingRetriever, RecursiveRetriever, QueryFusionRetriever (RRF/relative score/distribution-based), hybrid retrieval, production RAG pipeline with evaluation harness |
 | Course 4 - Module 2 | Semantic Similarity with FAISS | [lab13notes-c4-m2-faiss-semantic-similarity.md](lab13notes-c4-m2-faiss-semantic-similarity.md) | FAISS IndexFlatL2, USE embeddings, manual position mapping, embed→store→search separation |
 | Course 4 - Module 2 | AI-Powered YouTube Summariser and QA Tool | [lab14notes-c4-m2-QA-Tool-RAG-LC-FAISS.md](lab14notes-c4-m2-QA-Tool-RAG-LC-FAISS.md) | FAISS via LangChain wrapper, MiniLM embeddings, LCEL chains, gr.State(), Onion architecture, dependency injection, pytest with fixtures |
+| Course 5 - Module 1 | Personal Storyteller with Mistral and gTTS | lab15notes-c5-m1-personal-storyteller.md | LLM→TTS pipeline, Ollama local swap, gTTS, notebook→script refactor, pytest mocking patterns |
 
 
 ## Production Notes
@@ -123,3 +124,11 @@ Things that also matter in production:
 - Summarise path and Q&A path are architecturally distinct — summarisation sends the full transcript directly to the LLM (no retrieval). Q&A requires chunking, embedding, and FAISS retrieval first. Never conflate the two.
 - `sys.modules["config"] = Mock()` before importing the entry point prevents singleton initialisation during tests — essential when `config.py` makes API calls or loads models at import time.
 - pytest fixtures replace repeated Mock setup — define shared dependencies once in `@pytest.fixture`, inject by parameter name. Same pattern as `[SetUp]` in NUnit.
+
+**After Personal Storyteller lab (Course 5 - Module 1):**
+- `ibm_watsonx_ai.ModelInference.generate_text()` → `langchain_ollama.OllamaLLM.invoke()` for local Ollama swap. No `prompt=` keyword — `invoke()` takes the string positionally.
+- IBM's `DECODING_METHOD: "greedy"` ≡ `temperature=0.0` in Ollama. Same algorithm, different API surface. Use greedy when reproduciblity matters (labs, tests); use temperature > 0 for creative variation.
+- `gTTS(text)` is inert — constructor stores config, no network call. Network hits on `tts.write_to_fp()` or `tts.save()`. Calling both on the same object makes two separate round-trips to Google — save to file once, reuse the file.
+- gTTS is not production-ready — undocumented Google Translate endpoint, no SLA, no auth, IP-based rate limiting. For production TTS use ElevenLabs / Azure Speech / AWS Polly.
+- `python -m pytest` over bare `pytest` — uses whichever Python is active on PATH, avoiding silent system-Python invocation when venv is not activated.
+- Empty `conftest.py` is unreliable on modern pytest (7+) — always add the explicit `sys.path.insert(0, str(Path(__file__).parent))` for test discovery across subdirectories.
