@@ -1,4 +1,4 @@
-# ai-langchain-learning
+# ai-learning
 
 IBM RAG and Agentic AI Professional Certificate — course exercises and labs.
 
