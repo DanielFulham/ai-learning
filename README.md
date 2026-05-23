@@ -23,7 +23,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 | Course | Lab | Notes | Key Concepts |
 |---|---|---|---|
 | Course 1 - Module 1 | Prompt Engineering and LangChain PromptTemplates | [lab1-notes.md](lab1-notes.md) | LCEL chains, JsonOutputParser, prompting techniques |
-| Course 1 - Module 2 | Build Smarter AI Apps: Empower LLMs with LangChain | [lab2-notes.md](lab2-notes.md) | Output parsers, RAG retrieval, memory, chains, ReAct agents |
+| Course 1 - Module 2 | Build Smarter AI Apps: Empower LLMs with LangChain | [lab2notes.md](lab2notes.md) | Output parsers, RAG retrieval, memory, chains, ReAct agents |
 | Course 1 - Module 3 | Build Your First GenAI Application The Right Way | [lab3notes.md](lab3notes.md) | Flask + LangChain, multi-model comparison, Pydantic structured outputs |
 | Course 2 - Module 1 | Summarize Private Documents Using RAG, LangChain, and LLMs | [lab4notes.md](lab4notes.md) | RAG pipeline, document splitting, ChromaDB, RetrievalQA, prompt templates, conversational memory |
 | Course 2 - Module 2 | Set Up a Simple Gradio Interface to Interact with Your Models | [lab5notes-course2-module2.md](lab5notes-course2-module2.md) | Gradio Interface, common components, wiring Gradio to a Watsonx LLM |
@@ -37,7 +37,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 | Course 4 - Module 2 | Semantic Similarity with FAISS | [lab13notes-c4-m2-faiss-seman-similarity.md](lab13notes-c4-m2-faiss-seman-similarity.md) | FAISS IndexFlatL2, USE embeddings, manual position mapping, embed→store→search separation |
 | Course 4 - Module 2 | AI-Powered YouTube Summariser and QA Tool | [lab14notes-c4-m2-QA-Tool-RAG-LC-FAISS.md](lab14notes-c4-m2-QA-Tool-RAG-LC-FAISS.md) | FAISS via LangChain wrapper, MiniLM embeddings, LCEL chains, gr.State(), Onion architecture, dependency injection, pytest with fixtures |
 | Course 5 - Module 1 | Personal Storyteller with Mistral and gTTS | [lab15notes-c5-m1-personal-storyteller.md](lab15notes-c5-m1-personal-storyteller.md) | LLM→TTS pipeline, Ollama local swap, gTTS, notebook→script refactor, pytest mocking patterns |
-| Course 5 - Module 1 | AI Meeting Assistant with Whisper, LangChain & Gradio | [lab16notes-c5-m1-meeting-assistant.md](lab16notes-c5-m1-meeting-assistant.md) | Whisper STT, two-LLM pipeline, domain-specific pre-processing, HuggingFace pipeline, Gradio file download |
+| Course 5 - Module 1 | AI Meeting Assistant with Whisper, LangChain & Gradio | [lab16notes-c5-m1-build-meeting-assistant.md](lab16notes-c5-m1-build-meeting-assistant.md) | Whisper STT, two-LLM pipeline, domain-specific pre-processing, HuggingFace pipeline, Gradio file download |
 
 
 ## Production Notes
