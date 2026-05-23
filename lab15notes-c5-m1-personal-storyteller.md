@@ -1,4 +1,4 @@
-# Course 5 — Lab 1 (Module 1): Personal Storyteller
+# Course 5 — Lab 15: Personal Storyteller
 
 LLM → text → TTS → audio. A topic goes in, an MP3 comes out. ~50 lines of glue between Mistral (via Ollama) and gTTS.
 

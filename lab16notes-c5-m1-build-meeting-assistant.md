@@ -1,4 +1,4 @@
-# Course 5 — Lab 2 (Module 1): AI Meeting Assistant
+# Course 5 — Lab 16: AI Meeting Assistant
 
 Audio → transcript → cleanup → meeting minutes. A meeting recording goes in, structured minutes and a task list come out. ~80 lines of glue between Whisper, two Ollama calls, and a Gradio UI.
 
