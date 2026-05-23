@@ -8,4 +8,7 @@ __pycache__/
 *.pem
 .vscode/settings.json
 *.mp3
+*.wav
 *.ipynb
+course4-module2-lab-2/lab-instructions.md
+course5-module1-lab2/meeting_minutes_and_tasks.txt
