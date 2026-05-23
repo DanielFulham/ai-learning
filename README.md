@@ -12,7 +12,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 - Course 2: Build RAG Applications: Get Started ✅
 - Course 3: Vector Databases for RAG: An Introduction ✅
 - Course 4: Advanced RAG with Vector Databases and Retrievers ✅
-- Course 5: Build Multimodal Generative AI Applications 🔄 (Module 1 in progress)
+- Course 5: Build Multimodal Generative AI Applications 🔄 (Module 1 complete, Module 2 next)
 - Course 6: Fundamentals of Building AI Agents
 - Course 7: Agentic AI with LangChain and LangGraph
 - Course 8: Agentic AI with LangGraph, CrewAI, AutoGen and BeeAI
@@ -37,6 +37,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 | Course 4 - Module 2 | Semantic Similarity with FAISS | [lab13notes-c4-m2-faiss-seman-similarity.md](lab13notes-c4-m2-faiss-seman-similarity.md) | FAISS IndexFlatL2, USE embeddings, manual position mapping, embed→store→search separation |
 | Course 4 - Module 2 | AI-Powered YouTube Summariser and QA Tool | [lab14notes-c4-m2-QA-Tool-RAG-LC-FAISS.md](lab14notes-c4-m2-QA-Tool-RAG-LC-FAISS.md) | FAISS via LangChain wrapper, MiniLM embeddings, LCEL chains, gr.State(), Onion architecture, dependency injection, pytest with fixtures |
 | Course 5 - Module 1 | Personal Storyteller with Mistral and gTTS | [lab15notes-c5-m1-personal-storyteller.md](lab15notes-c5-m1-personal-storyteller.md) | LLM→TTS pipeline, Ollama local swap, gTTS, notebook→script refactor, pytest mocking patterns |
+| Course 5 - Module 1 | AI Meeting Assistant with Whisper, LangChain & Gradio | [lab16notes-c5-m1-meeting-assistant.md](lab16notes-c5-m1-meeting-assistant.md) | Whisper STT, two-LLM pipeline, domain-specific pre-processing, HuggingFace pipeline, Gradio file download |
 
 
 ## Production Notes
@@ -132,3 +133,12 @@ Things that also matter in production:
 - gTTS is not production-ready — undocumented Google Translate endpoint, no SLA, no auth, IP-based rate limiting. For production TTS use ElevenLabs / Azure Speech / AWS Polly.
 - `python -m pytest` over bare `pytest` — uses whichever Python is active on PATH, avoiding silent system-Python invocation when venv is not activated.
 - Empty `conftest.py` is unreliable on modern pytest (7+) — always add the explicit `sys.path.insert(0, str(Path(__file__).parent))` for test discovery across subdirectories.
+
+**After Meeting Assistant lab (Course 5 - Module 1):**
+- Two-LLM pipeline — cheap model cleans, expensive model generates. Pre-processing with a small low-temperature LLM before the main generation call is a real production pattern. Cleanup call is deterministic (temp=0.2); generation call is creative (temp=0.5). Don't conflate them into one prompt.
+- Domain-specific pre-processing is prompt-engineered, not hardcoded. System prompt handles contextual disambiguation (LTV = Loan-to-Value vs Lifetime Value). The system prompt is business logic — keep it in source control and version it like code.
+- ffmpeg is a hidden Whisper dependency — not installed via pip, it's a system binary. Easy to miss locally, critical for deployment. Always include in deployment checklist and Dockerfile.
+- HuggingFace `pipeline()` is the right abstraction for labs; `model.generate()` is the right abstraction for production. Whisper's own chunking mechanism (used via `generate()`) is more accurate than the pipeline wrapper's `chunk_length_s` approach for long-form audio.
+- HuggingFace model cache at `~/.cache/huggingface/hub/` — models download once and reuse automatically. For containerised deployments, mount as a volume or pre-download in the Docker build step to avoid cold-start delays.
+- `RunnablePassthrough` wrapper in LCEL chain is unnecessary when passing dict directly via `chain.invoke({"context": value})` — `prompt | llm | StrOutputParser()` is equivalent and cleaner.
+- `gr.Interface` is single-turn and stateless. For conversation history use `gr.ChatInterface` or `gr.Blocks`. Gradio is for prototyping and internal tooling — not end-user production frontends.
