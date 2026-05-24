@@ -12,7 +12,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 - Course 2: Build RAG Applications: Get Started ✅
 - Course 3: Vector Databases for RAG: An Introduction ✅
 - Course 4: Advanced RAG with Vector Databases and Retrievers ✅
-- Course 5: Build Multimodal Generative AI Applications 🔄 (Module 1 complete, Module 2 next)
+- Course 5: Build Multimodal Generative AI Applications 🔄 (Module 2 in progress)
 - Course 6: Fundamentals of Building AI Agents
 - Course 7: Agentic AI with LangChain and LangGraph
 - Course 8: Agentic AI with LangGraph, CrewAI, AutoGen and BeeAI
@@ -38,6 +38,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 | Course 4 - Module 2 | AI-Powered YouTube Summariser and QA Tool | [lab14notes-c4-m2-QA-Tool-RAG-LC-FAISS.md](lab14notes-c4-m2-QA-Tool-RAG-LC-FAISS.md) | FAISS via LangChain wrapper, MiniLM embeddings, LCEL chains, gr.State(), Onion architecture, dependency injection, pytest with fixtures |
 | Course 5 - Module 1 | Personal Storyteller with Mistral and gTTS | [lab15notes-c5-m1-personal-storyteller.md](lab15notes-c5-m1-personal-storyteller.md) | LLM→TTS pipeline, Ollama local swap, gTTS, notebook→script refactor, pytest mocking patterns |
 | Course 5 - Module 1 | AI Meeting Assistant with Whisper, LangChain & Gradio | [lab16notes-c5-m1-build-meeting-assistant.md](lab16notes-c5-m1-build-meeting-assistant.md) | Whisper STT, two-LLM pipeline, domain-specific pre-processing, HuggingFace pipeline, Gradio file download |
+| Course 5 - Module 2 | DALL-E Image Generation (GPT Image API) | [lab17notes-c5-m2-dall-e-image-gen.md](lab17notes-c5-m2-dall-e-image-gen.md) | Text-to-image generation, GPT Image API, model comparison (gpt-image-1 vs gpt-image-2), base64 image handling |
 
 
 ## Production Notes
@@ -142,3 +143,10 @@ Things that also matter in production:
 - HuggingFace model cache at `~/.cache/huggingface/hub/` — models download once and reuse automatically. For containerised deployments, mount as a volume or pre-download in the Docker build step to avoid cold-start delays.
 - `RunnablePassthrough` wrapper in LCEL chain is unnecessary when passing dict directly via `chain.invoke({"context": value})` — `prompt | llm | StrOutputParser()` is equivalent and cleaner.
 - `gr.Interface` is single-turn and stateless. For conversation history use `gr.ChatInterface` or `gr.Blocks`. Gradio is for prototyping and internal tooling — not end-user production frontends.
+
+**After DALL-E Image Generation lab (Course 5 - Module 2):**
+- DALL-E 2 and DALL-E 3 were deprecated and removed from the OpenAI API on May 12, 2026. Use `gpt-image-1` (DALL-E 2 equivalent) and `gpt-image-2` (DALL-E 3 equivalent) instead.
+- `gpt-image-1` returns base64 by default, not a URL. Decode with `base64.b64decode(response.data[0].b64_json)` and write to file.
+- The GPT Image series uses an autoregressive architecture, not diffusion — a fundamental architectural shift from DALL-E 2/3. Higher quality and better instruction following at the cost of different latency characteristics.
+- Same prompt produces different compositional decisions across model generations — gpt-image-2 makes more ambitious creative choices than gpt-image-1. Account for this in production pipelines where output consistency matters.
+- OpenAI API and ChatGPT subscriptions are billed separately — API credits at platform.openai.com, not via the ChatGPT Plus subscription.
