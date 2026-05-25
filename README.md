@@ -39,6 +39,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 | Course 5 - Module 1 | Personal Storyteller with Mistral and gTTS | [lab15notes-c5-m1-personal-storyteller.md](lab15notes-c5-m1-personal-storyteller.md) | LLM→TTS pipeline, Ollama local swap, gTTS, notebook→script refactor, pytest mocking patterns |
 | Course 5 - Module 1 | AI Meeting Assistant with Whisper, LangChain & Gradio | [lab16notes-c5-m1-build-meeting-assistant.md](lab16notes-c5-m1-build-meeting-assistant.md) | Whisper STT, two-LLM pipeline, domain-specific pre-processing, HuggingFace pipeline, Gradio file download |
 | Course 5 - Module 2 | DALL-E Image Generation (GPT Image API) | [lab17notes-c5-m2-dall-e-image-gen.md](lab17notes-c5-m2-dall-e-image-gen.md) | Text-to-image generation, GPT Image API, model comparison (gpt-image-1 vs gpt-image-2), base64 image handling |
+| Course 5 - Module 2 | Image Captioning System (LLaVA + Llama 4 Maverick) | [Lab18notes-c5-m2-image-captioning.md](Lab18notes-c5-m2-image-captioning.md) | Multimodal image captioning, visual QA, base64 image encoding, Ollama vs watsonx message format differences, model comparison (LLaVA vs Llama 4 Maverick) |
 
 
 ## Production Notes
@@ -150,3 +151,11 @@ Things that also matter in production:
 - The GPT Image series uses an autoregressive architecture, not diffusion — a fundamental architectural shift from DALL-E 2/3. Higher quality and better instruction following at the cost of different latency characteristics.
 - Same prompt produces different compositional decisions across model generations — gpt-image-2 makes more ambitious creative choices than gpt-image-1. Account for this in production pipelines where output consistency matters.
 - OpenAI API and ChatGPT subscriptions are billed separately — API credits at platform.openai.com, not via the ChatGPT Plus subscription.
+
+**After Image Captioning System lab (Course 5 - Module 2):**
+- Ollama multimodal message format differs from OpenAI/watsonx — use `"images": [encoded_image]` as a top-level field with `"content"` as a plain string. The IBM/OpenAI nested content array format silently fails with Ollama — no error thrown, the model just never sees the image.
+- `ibm-watsonx-ai==1.1.20` requires Python < 3.13. Use unpinned `ibm-watsonx-ai` on Python 3.13 to get the latest compatible version.
+- Default argument strings in function signatures can cause silent cell failure in IBM SN Labs Jupyter kernels. Extract long string defaults to module-level constants to avoid this.
+- Model deprecation on managed platforms moves fast — `llama-3-2-11b-vision-instruct` deprecated May 5 2026, weeks after the lab was published. Always check the supported model list at runtime via `client.foundation_models.TextModels.show()`.
+- Hallucination patterns differ by model size — smaller models (LLaVA 7B) invent plausible context when uncertain. Larger models (Maverick 17B) ground more accurately but don't eliminate hallucination. Eval pipelines catch this; eyeballing does not.
+- Base64 is the universal transport format for images in LLM APIs — `base64.b64encode(response.content).decode("utf-8")`. Mandatory because JSON is text-only. Same pattern regardless of provider.
