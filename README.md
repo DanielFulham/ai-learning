@@ -40,7 +40,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 | Course 5 - Module 1 | AI Meeting Assistant with Whisper, LangChain & Gradio | [lab16notes-c5-m1-build-meeting-assistant.md](lab16notes-c5-m1-build-meeting-assistant.md) | Whisper STT, two-LLM pipeline, domain-specific pre-processing, HuggingFace pipeline, Gradio file download |
 | Course 5 - Module 2 | DALL-E Image Generation (GPT Image API) | [lab17notes-c5-m2-dall-e-image-gen.md](lab17notes-c5-m2-dall-e-image-gen.md) | Text-to-image generation, GPT Image API, model comparison (gpt-image-1 vs gpt-image-2), base64 image handling |
 | Course 5 - Module 2 | Image Captioning System (LLaVA + Llama 4 Maverick) | [Lab18notes-c5-m2-image-captioning.md](Lab18notes-c5-m2-image-captioning.md) | Multimodal image captioning, visual QA, base64 image encoding, Ollama vs watsonx message format differences, model comparison (LLaVA vs Llama 4 Maverick) |
-| Course 5 - Module 3 | Style Finder: MM-RAG Fashion Analysis | [Lab19notes-c5-m3-style-finder.md](Lab19notes-c5-m3-style-finder.md) | MM-RAG pipeline, ResNet50 image encoding, cosine similarity retrieval, multimodal prompt augmentation, LLaVA vs Llama 4 Maverick, dual entry point pattern |
+| Course 5 - Module 3 | Style Finder: MM-RAG Fashion Analysis | [Lab19notes-c5-m3-comp-vision.md](Lab19notes-c5-m3-comp-vision.md) | MM-RAG pipeline, ResNet50 image encoding, cosine similarity retrieval, multimodal prompt augmentation, LLaVA vs Llama 4 Maverick, dual entry point pattern |
 
 
 ## Production Notes
