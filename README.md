@@ -12,7 +12,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 - Course 2: Build RAG Applications: Get Started ✅
 - Course 3: Vector Databases for RAG: An Introduction ✅
 - Course 4: Advanced RAG with Vector Databases and Retrievers ✅
-- Course 5: Build Multimodal Generative AI Applications 🔄 (Module 2 in progress)
+- Course 5: Build Multimodal Generative AI Applications 🔄 (Module 3 in progress)
 - Course 6: Fundamentals of Building AI Agents
 - Course 7: Agentic AI with LangChain and LangGraph
 - Course 8: Agentic AI with LangGraph, CrewAI, AutoGen and BeeAI
@@ -40,6 +40,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 | Course 5 - Module 1 | AI Meeting Assistant with Whisper, LangChain & Gradio | [lab16notes-c5-m1-build-meeting-assistant.md](lab16notes-c5-m1-build-meeting-assistant.md) | Whisper STT, two-LLM pipeline, domain-specific pre-processing, HuggingFace pipeline, Gradio file download |
 | Course 5 - Module 2 | DALL-E Image Generation (GPT Image API) | [lab17notes-c5-m2-dall-e-image-gen.md](lab17notes-c5-m2-dall-e-image-gen.md) | Text-to-image generation, GPT Image API, model comparison (gpt-image-1 vs gpt-image-2), base64 image handling |
 | Course 5 - Module 2 | Image Captioning System (LLaVA + Llama 4 Maverick) | [Lab18notes-c5-m2-image-captioning.md](Lab18notes-c5-m2-image-captioning.md) | Multimodal image captioning, visual QA, base64 image encoding, Ollama vs watsonx message format differences, model comparison (LLaVA vs Llama 4 Maverick) |
+| Course 5 - Module 3 | Style Finder: MM-RAG Fashion Analysis | [Lab19notes-c5-m3-style-finder.md](Lab19notes-c5-m3-style-finder.md) | MM-RAG pipeline, ResNet50 image encoding, cosine similarity retrieval, multimodal prompt augmentation, LLaVA vs Llama 4 Maverick, dual entry point pattern |
 
 
 ## Production Notes
@@ -159,3 +160,13 @@ Things that also matter in production:
 - Model deprecation on managed platforms moves fast — `llama-3-2-11b-vision-instruct` deprecated May 5 2026, weeks after the lab was published. Always check the supported model list at runtime via `client.foundation_models.TextModels.show()`.
 - Hallucination patterns differ by model size — smaller models (LLaVA 7B) invent plausible context when uncertain. Larger models (Maverick 17B) ground more accurately but don't eliminate hallucination. Eval pipelines catch this; eyeballing does not.
 - Base64 is the universal transport format for images in LLM APIs — `base64.b64encode(response.content).decode("utf-8")`. Mandatory because JSON is text-only. Same pattern regardless of provider.
+
+**After Style Finder lab (Course 5 - Module 3):**
+- Vector stores are modality-agnostic — FAISS, ChromaDB, and cosine similarity operate on float arrays with no concept of image vs text. The encoder (ResNet50, CLIP) determines what "similar" means; the store just does nearest-neighbour search.
+- The uploaded image is used twice in MM-RAG: as a feature vector for retrieval, and as base64 for generation. Both come from the same encode call.
+- Same embedding model must be used at index time and query time — different weights means different vector space, similarity search breaks silently.
+- Brute-force cosine similarity is fine for small datasets. Production MM-RAG indexes into FAISS or ChromaDB for scale — the retrieval logic is identical, only the index structure differs.
+- `ResNet50_Weights.DEFAULT` replaces deprecated `pretrained=True` in newer torchvision.
+- Gradio 5 theme import changed — `from gradio.themes import Soft` replaces `gr.themes.Soft()`.
+- LLaVA (7B) can outperform larger models on contextual reasoning tasks — it connected retrieved metadata to the image rather than listing items verbatim. Smaller models hallucinate more but don't always lose on reasoning. Eval pipelines catch this; manual testing doesn't.
+- IBM watsonx managed API (~7s) vs local Ollama LLaVA on RTX 4070 (~2m19s) — 20x latency difference. Managed API for production, local for cost-free dev iteration.
