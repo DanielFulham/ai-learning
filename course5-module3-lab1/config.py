@@ -7,6 +7,9 @@ import os
 
 load_dotenv()
 
+# Backend selection — set to False to use IBM watsonx
+USE_LOCAL = False
+
 # Model and API configuration
 LLAMA_MODEL_ID = "meta-llama/llama-4-maverick-17b-128e-instruct-fp8"
 PROJECT_ID = os.getenv("WATSONX_PROJECT_ID", "skills-network")
