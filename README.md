@@ -41,6 +41,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 | Course 5 - Module 2 | DALL-E Image Generation (GPT Image API) | [lab17notes-c5-m2-dall-e-image-gen.md](lab17notes-c5-m2-dall-e-image-gen.md) | Text-to-image generation, GPT Image API, model comparison (gpt-image-1 vs gpt-image-2), base64 image handling |
 | Course 5 - Module 2 | Image Captioning System (LLaVA + Llama 4 Maverick) | [Lab18notes-c5-m2-image-captioning.md](Lab18notes-c5-m2-image-captioning.md) | Multimodal image captioning, visual QA, base64 image encoding, Ollama vs watsonx message format differences, model comparison (LLaVA vs Llama 4 Maverick) |
 | Course 5 - Module 3 | Style Finder: MM-RAG Fashion Analysis | [Lab19notes-c5-m3-comp-vision.md](Lab19notes-c5-m3-comp-vision.md) | MM-RAG pipeline, ResNet50 image encoding, cosine similarity retrieval, multimodal prompt augmentation, LLaVA vs Llama 4 Maverick, dual entry point pattern |
+| Course 5 - Module 3 | AI Nutrition Coach: Vision QA Web App | [Lab20notes-c5-m3-ai-nutrition-coach.md](Lab20notes-c5-m3-ai-nutrition-coach.md) | Vision QA (not MM-RAG), Flask + base64 image encoding, structured system prompt as guardrail, three-way model comparison (Maverick / Llama 3.2 Vision / LLaVA), `temperature=0.0` non-determinism on hosted APIs, Protocol-based interface |
 
 
 ## Production Notes
@@ -170,3 +171,12 @@ Things that also matter in production:
 - Gradio 5 theme import changed — `from gradio.themes import Soft` replaces `gr.themes.Soft()`.
 - LLaVA (7B) can outperform larger models on contextual reasoning tasks — it connected retrieved metadata to the image rather than listing items verbatim. Smaller models hallucinate more but don't always lose on reasoning. Eval pipelines catch this; manual testing doesn't.
 - IBM watsonx managed API (~7s) vs local Ollama LLaVA on RTX 4070 (~2m19s) — 20x latency difference. Managed API for production, local for cost-free dev iteration.
+
+**After AI Nutrition Coach lab (Course 5 - Module 3):**
+- Vision QA ≠ MM-RAG. Vision QA sends the image straight to the LLM. MM-RAG retrieves first, then sends image plus retrieved context. The course groups them as "multimodal" but they're different pipelines.
+- `temperature=0.0` is not deterministic on hosted LLMs. Same image and prompt produced 590 vs 540 calorie totals across two runs. Kernel-level FP non-determinism on shared GPUs and batch-dependent inference paths cause it. Eval pipelines must assume stochastic output.
+- Parameter count doesn't predict capability. Llama 3.2 11B Vision underperformed both LLaVA 7B (instruction following) and Maverick (visual accuracy) despite sitting between them in size. Visual reasoning, instruction following, latency, and cost are independent axes.
+- Structured system prompts work as guardrails. Numbered output contract + inline format examples + verbatim required text produces reliable structured output without fine-tuning.
+- watsonx model availability is region-specific. `ibm/granite-vision-3-2-2b` is not in `us-south`. The `WMLClientError` returns the full list of supported model IDs.
+- Flask `flash()` requires `app.secret_key`. Lab code omits it because IBM's Cloud IDE injects it. Locally you must set it explicitly.
+- Regex Markdown→HTML conversion is fragile. Production needs a proper Markdown parser, or structured (JSON) output from the model.
