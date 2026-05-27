@@ -25,9 +25,7 @@ Complete multimodal RAG pipeline for fashion analysis. Image in, fashion analysi
 | Web UI | Gradio 5 (`gr.Blocks`) | Same |
 | Credentials | python-dotenv + .env with WATSONX_API_KEY and WATSONX_PROJECT_ID | None — no credentials needed |
 
-Two entry points:
-- `app_ibm.py` — Llama 4 Maverick via watsonx
-- `app_local_ollama.py` — LLaVA via Ollama (fully local, no API key needed)
+Backend selected via `config.USE_LOCAL` (True = Ollama, False = IBM watsonx).
 
 ---
 
@@ -35,20 +33,24 @@ Two entry points:
 
 ```
 course5-module3-lab1/
-├── app_ibm.py                        — IBM watsonx entry point
-├── app_local_ollama.py               — Ollama local entry point
-├── config.py                         — model IDs, image settings, thresholds
+├── app.py                            — single entry point, composition root
+├── config.py                         — model IDs, USE_LOCAL flag, image settings
 ├── requirements.txt
-├── swift-style-embeddings.pkl        — pre-computed dataset (gitignored, ~large)
-├── .env                              — WATSONX_API_KEY, WATSONX_PROJECT_ID, LLM_BACKEND
+├── swift-style-embeddings.pkl        — pre-computed dataset (gitignored)
+├── .env                              — WATSONX_API_KEY, WATSONX_PROJECT_ID
 ├── .gitignore
 ├── examples/
 │   ├── test-6.png
 │   └── test-7.png
+├── interfaces/
+│   ├── __init__.py
+│   └── llm_service_interface.py      — Protocol contract for LLM services
+├── infra/
+│   ├── __init__.py
+│   ├── llm_service.py                — IBM watsonx concrete implementation
+│   └── llm_service_local.py          — Ollama local concrete implementation
 ├── models/
-│   ├── image_processor.py            — ResNet50 encoding + cosine similarity
-│   ├── llm_service.py                — IBM watsonx vision LLM service
-│   └── llm_service_local.py          — Ollama local vision LLM service
+│   └── image_processor.py            — ResNet50 encoding + cosine similarity
 ├── services/
 │   └── search_service.py             — SerpAPI product search (optional)
 └── utils/
@@ -151,7 +153,7 @@ with gr.Blocks(theme=Soft(), ...) as demo:
 
 **`ibm-watsonx-ai==1.1.20` not installable on Python 3.13.** Same issue as Lab 18 — use unpinned `ibm-watsonx-ai` to get latest (1.5.12).
 
-**Dual entry point pattern over commented imports.** Separate `app_ibm.py` and `app_local_ollama.py` is cleaner than commenting/uncommenting imports. Config-driven factory with abstract base class is the correct production refactor (TODO on separate PR).
+**Single app.py with Protocol interface and infra layer.** `LLMServiceInterface` Protocol in `interfaces/` defines the contract. IBM and Ollama concretes in `infra/` satisfy it structurally — no explicit inheritance. `create_llm_service()` in `app.py` is the composition root, wired via `config.USE_LOCAL`.
 
 **`.pkl` gitignored.** The embeddings file is large binary data — same principle as not committing model weights. Add to `.gitignore` before first commit.
 
@@ -225,37 +227,6 @@ LLaVA's contextual reasoning about the retrieved items was unexpectedly better i
 **Caption-then-index pattern for match photos** — generate captions for match photos using a vision LLM, embed the captions for text retrieval. Fan asks "show me photos of goals against Bohs" → retrieve by caption similarity, not filename. Lab 18 pattern applied to Rovers media library.
 
 **The fragility question** — current Hooperman answers can be fragile with only 33 golden questions. Scaling to 200+ questions with real fan queries covers the full question space and catches retrieval failures that the current golden set doesn't surface. The eval pipeline tickets is the right fix.
-
----
-
-## Refactor TODO (separate PR)
-
-Current dual entry point approach (commented imports / two app files) should be replaced with:
-
-```python
-# models/llm_service_base.py
-from abc import ABC, abstractmethod
-
-class LLMServiceBase(ABC):
-    @abstractmethod
-    def generate_response(self, encoded_image, prompt) -> str: ...
-    
-    @abstractmethod
-    def generate_fashion_response(self, ...) -> str: ...
-```
-
-```python
-# models/llm_service_factory.py
-def create_llm_service() -> LLMServiceBase:
-    if config.LLM_BACKEND == "ollama":
-        from models.llm_service_local import OllamaVisionService
-        return OllamaVisionService(model_id=config.OLLAMA_MODEL_ID)
-    else:
-        from models.llm_service import LlamaVisionService
-        return LlamaVisionService(model_id=config.LLAMA_MODEL_ID, ...)
-```
-
-Single `app.py`, `LLM_BACKEND=ibm` or `LLM_BACKEND=ollama` in `.env`. Same onion architecture pattern used throughout the course — dependency resolved at construction time, caller never knows which implementation it got.
 
 ---
 
