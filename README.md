@@ -12,8 +12,8 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 - Course 2: Build RAG Applications: Get Started ✅
 - Course 3: Vector Databases for RAG: An Introduction ✅
 - Course 4: Advanced RAG with Vector Databases and Retrievers ✅
-- Course 5: Build Multimodal Generative AI Applications 🔄 (Module 3 in progress)
-- Course 6: Fundamentals of Building AI Agents
+- Course 5: Build Multimodal Generative AI Applications ✅
+- Course 6: Fundamentals of Building AI Agents 🔄 (Module 1 in progress)
 - Course 7: Agentic AI with LangChain and LangGraph
 - Course 8: Agentic AI with LangGraph, CrewAI, AutoGen and BeeAI
 - Course 9: Build AI Agents using MCP
@@ -42,7 +42,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 | Course 5 - Module 2 | Image Captioning System (LLaVA + Llama 4 Maverick) | [Lab18notes-c5-m2-image-captioning.md](Lab18notes-c5-m2-image-captioning.md) | Multimodal image captioning, visual QA, base64 image encoding, Ollama vs watsonx message format differences, model comparison (LLaVA vs Llama 4 Maverick) |
 | Course 5 - Module 3 | Style Finder: MM-RAG Fashion Analysis | [Lab19notes-c5-m3-comp-vision.md](Lab19notes-c5-m3-comp-vision.md) | MM-RAG pipeline, ResNet50 image encoding, cosine similarity retrieval, multimodal prompt augmentation, LLaVA vs Llama 4 Maverick, dual entry point pattern |
 | Course 5 - Module 3 | AI Nutrition Coach: Vision QA Web App | [Lab20notes-c5-m3-ai-nutrition-coach.md](Lab20notes-c5-m3-ai-nutrition-coach.md) | Vision QA (not MM-RAG), Flask + base64 image encoding, structured system prompt as guardrail, three-way model comparison (Maverick / Llama 3.2 Vision / LLaVA), `temperature=0.0` non-determinism on hosted APIs, Protocol-based interface |
-
+| Course 6 - Module 1 | AI Math Assistant: LangChain Tool Calling | [lab21notes-c6-m1-math-assistant.md](course6-module1-lab1/lab21notes-c6-m1-math-assistant.md) | `@tool` decorator schemas, `create_agent` (LangChain 1.x), three generations of agent API churn, docstring as runtime contract, silent-wrong-answer patterns, harness ≠ eval (false negatives), Pydantic schema validation as safety net, OpenAI vs Mistral capability gradient |
 
 ## Production Notes
 
@@ -180,3 +180,17 @@ Things that also matter in production:
 - watsonx model availability is region-specific. `ibm/granite-vision-3-2-2b` is not in `us-south`. The `WMLClientError` returns the full list of supported model IDs.
 - Flask `flash()` requires `app.secret_key`. Lab code omits it because IBM's Cloud IDE injects it. Locally you must set it explicitly.
 - Regex Markdown→HTML conversion is fragile. Production needs a proper Markdown parser, or structured (JSON) output from the model.
+
+**After AI Math Assistant lab (Course 6 - Module 1):**
+- Three generations of LangChain agent API are physically installed in the freeze output — `langchain-classic` (legacy `initialize_agent`), `langgraph-prebuilt` (transitional `create_react_agent`), `langchain.agents` (current `create_agent`). The migration paths aren't clean yet. Thin `@tool` decorators over your own functions survive the churn; imports from `langchain-community` don't.
+- The docstring of a `@tool`-decorated function is a runtime artefact, not developer comfort. The LLM reads it to decide whether to call the tool, what arguments to construct, and how to format them. The docstring's example block is the prior the LLM uses for argument shape. Sloppy docstrings produce sloppy tool arguments — and stronger models trust the docstring more, not less, so the risk grows with model capability.
+- Native tool calling replaced the parser-loop hazard with the silent-acceptance hazard. Legacy `initialize_agent` agents looped on bad tool output and timed out. `create_agent` agents accept and move on. Failure changed from "fails loudly" to "fails silently" — the more dangerous mode.
+- The model does not sanity-check tool output against the prompt. GPT-4.1-nano accepted `60` as the sum of `-10, -20, -30` — three negatives summing positive is arithmetically impossible from the prompt alone. The model trusts the tool output as ground truth even when the wrongness is detectable without any computation.
+- Direct tool tests catch what LLM-mediated tests hide. Calling `multiply_numbers.invoke('2, 3, and four')` returns 6 (the word "four" silently dropped). The LLM normalises word-numbers before the tool sees them, hiding the parsing brittleness. Production tool suites need both direct and agent-mediated tests — failures in either layer get attributed to whichever the engineer suspects first.
+- Contract testing (tool output vs expected value) is not eval testing (agent answer vs user intent). The IBM lab's four-case harness produced 2 PASSes and 2 FAILs on a run where the agent answered correctly in all four cases — both FAILs were false negatives. Production eval needs semantic match on the agent's final answer; tool-call inspection is a separate signal.
+- Pydantic schema validation on `@tool` arguments is a load-bearing safety net. Mistral 7B locally fabricated a tool call with output shape `{'result': -60}` as input arguments. The framework rejected with `inputs: Field required`, the error became part of the message stream, the LLM read its own error and recovered via internal arithmetic. Without typed schemas the malformed call would have crashed or run with garbage.
+- "Capability" is not a scalar. Same tool contract, two models, four different reliability profiles across three prompts. Mistral 7B: paranoid pre-processing on GDP (right), soft-language hedging on "two and 30" (wrong but cautious phrasing), fabricate-and-recover on negatives (right via self-correction). GPT-4.1-nano: confident-and-wrong on all three. Reliability is the product of model capability × tool contract specificity × harness guardrails — and a regression in any one dimension can be invisible to everyone in the loop.
+- The agent loop is a state machine, not a Python while-loop. `create_agent` returns a `CompiledStateGraph` from LangGraph. The "loop" is a conditional edge between an Agent Node and a Tools Node — the LLM controls iteration by emitting (or not emitting) `tool_calls`. Agent behaviour is a model-capability problem, not a framework problem.
+- Visibility moved from constructor flag to method choice. Legacy `initialize_agent(verbose=True)` printed intermediate state synchronously during text parsing. `create_agent` runs on LangGraph; state transitions are events. `.invoke()` returns the final state; `.stream()` yields each tick. Production observability inherits cleanly — the same primitive that drives debug output drives LangSmith traces and OpenTelemetry spans.
+- For small underlying libraries (`wikipedia`, `duckduckgo-search`, `requests`-based APIs), skip the LangChain wrapper and write a thin `@tool` over the raw library. Six lines, zero framework versioning risk, full control of HTTP behaviour. Reserve LangChain wrappers for integrations where the wrapper does real work — auth flows, complex pagination, multi-step orchestration.
+- Wikipedia's API requires a User-Agent header — without one, the API throttles or refuses anonymous requests. Honest identification (project URL or contact) is rewarded with better rate limits than spoofed browsers.
