@@ -23,4 +23,4 @@ def make_get_thumbnails(client: YouTubeMetadataClientInterface) -> BaseTool:
         except Exception as e:
             return [{"error": f"Failed to get thumbnails: {str(e)}"}]
 
-    return get_thumbnails
+    return get_thumbnails  # type: ignore[return-value]  # @tool returns StructuredTool, a BaseTool subtype

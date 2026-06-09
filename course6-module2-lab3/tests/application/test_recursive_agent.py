@@ -1,3 +1,4 @@
+import pytest
 from unittest.mock import MagicMock
 
 from langchain.tools import tool
@@ -80,8 +81,6 @@ def test_parallel_tool_calls_in_one_turn() -> None:
 
     assert agent.run("do both") == "parallel done"
 
-import pytest
-
 
 def test_raises_runtime_error_when_max_iterations_exceeded() -> None:
     """A model that never stops calling tools must trip the cap before recursion blows the stack."""
@@ -135,6 +134,6 @@ def test_raises_type_error_when_final_content_is_not_string() -> None:
         AIMessage(content=[{"type": "text", "text": "block-formatted response"}]),  # type: ignore[arg-type]
     )
     agent = RecursiveAgent(llm, [_make_tool("a", "x")])
-    
+
     with pytest.raises(TypeError, match="Expected string content"):
         agent.run("query")

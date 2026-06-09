@@ -28,4 +28,4 @@ def make_get_trending_videos(client: YouTubeMetadataClientInterface) -> BaseTool
         except Exception as e:
             return [{"error": f"Failed to fetch trending videos: {str(e)}"}]
 
-    return get_trending_videos
+    return get_trending_videos  # type: ignore[return-value]  # @tool returns StructuredTool, a BaseTool subtype

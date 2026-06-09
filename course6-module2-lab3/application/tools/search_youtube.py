@@ -25,4 +25,4 @@ def make_search_youtube(client: YouTubeSearchClientInterface) -> BaseTool:
         except Exception as e:
             return [{"error": f"Search failed: {str(e)}"}]
 
-    return search_youtube
+    return search_youtube  # type: ignore[return-value]  # @tool returns StructuredTool, a BaseTool subtype

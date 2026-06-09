@@ -32,4 +32,4 @@ def make_extract_video_id() -> BaseTool:
         match = re.search(pattern, url)
         return match.group(1) if match else "Error: Invalid YouTube URL"
 
-    return extract_video_id
+    return extract_video_id  # type: ignore[return-value]  # @tool returns StructuredTool, a BaseTool subtype
