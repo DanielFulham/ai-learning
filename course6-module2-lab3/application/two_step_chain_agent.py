@@ -1,3 +1,6 @@
+import json
+import logging
+
 from langchain.messages import HumanMessage, ToolMessage
 from langchain.tools import BaseTool
 from langchain_core.messages.tool import ToolCall
@@ -6,6 +9,7 @@ from langchain_core.runnables import RunnableLambda, RunnablePassthrough
 
 from application.interfaces.video_agent_interface import VideoAgentInterface
 
+logger = logging.getLogger(__name__)
 
 class TwoStepChainAgent(VideoAgentInterface):
     """Agent that invokes the LLM exactly three times, regardless of query shape.
@@ -31,18 +35,31 @@ class TwoStepChainAgent(VideoAgentInterface):
         return result
 
     def _execute_tool(self, tool_call: ToolCall) -> ToolMessage:
+        tool_call_id = tool_call.get("id")
+        if tool_call_id is None:
+            raise ValueError(
+                f"Tool call for '{tool_call.get('name')}' has no id; cannot construct ToolMessage. "
+                "This indicates an LLM provider returning a malformed tool_call."
+            )
+
         name = tool_call["name"]
         if name not in self._tools:
             return ToolMessage(
                 content=f"Error: Unknown tool '{name}'. Available tools: {sorted(self._tools.keys())}",
-                tool_call_id=tool_call["id"],
+                tool_call_id=tool_call_id,
             )
         try:
             result = self._tools[name].invoke(tool_call["args"])
-            content = result if isinstance(result, str) else str(result)
+            content = result if isinstance(result, str) else json.dumps(result, default=str)
         except Exception as e:
+            logger.exception(
+                "Tool '%s' raised during invocation (tool_call_id=%s, args=%s)",
+                name,
+                tool_call_id,
+                tool_call.get("args"),
+            )
             content = f"Error: {str(e)}"
-        return ToolMessage(content=content, tool_call_id=tool_call["id"])
+        return ToolMessage(content=content, tool_call_id=tool_call_id)
 
     def _build_chain(self):
         initial_setup = RunnablePassthrough.assign(

@@ -3,7 +3,7 @@ from typing import cast
 
 import yt_dlp
 
-
+from domain.video_metadata import MetadataResult
 from interfaces.youtube_metadata_client_interface import YouTubeMetadataClientInterface
 
 
@@ -38,21 +38,32 @@ class YtDlpMetadataClient(YouTubeMetadataClientInterface):
     three use the same underlying YoutubeDL machinery and the same logger
     adapter. Raises whatever yt-dlp raises; the application layer decides
     how to map those into tool-call error messages.
+
+    By default, suppresses yt-dlp logging below ERROR globally. Pass
+    suppress_logs=False to leave the global yt-dlp logger configuration
+    untouched (useful in tests or when another component owns yt-dlp's
+    logging config).
     """
 
-    def __init__(self) -> None:
+    def __init__(self, suppress_logs: bool = True) -> None:
         self._logger = _YtDlpLoggerAdapter()
-        logging.getLogger("yt_dlp").setLevel(logging.ERROR)
+        if suppress_logs:
+            logging.getLogger("yt_dlp").setLevel(logging.ERROR)
+
+    _SOCKET_TIMEOUT_SECONDS = 10
 
     def _extract(self, url: str, extra_opts: dict | None = None) -> dict | None:
-        opts = {"quiet": True, "logger": self._logger}
+        opts = {
+            "quiet": True,
+            "logger": self._logger,
+            "socket_timeout": self._SOCKET_TIMEOUT_SECONDS,
+        }
         if extra_opts:
             opts.update(extra_opts)
         with yt_dlp.YoutubeDL(opts) as ydl:  # type: ignore[arg-type, no-untyped-call]
-            info = ydl.extract_info(url, download=False)
-            return cast(dict | None, info)
+            return cast(dict | None, ydl.extract_info(url, download=False))
 
-    def get_metadata(self, url: str) -> dict:
+    def get_metadata(self, url: str) -> MetadataResult:
         info = self._extract(url)
         if info is None:
             return {"error": "Could not extract video info"}

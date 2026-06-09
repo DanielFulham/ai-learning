@@ -107,3 +107,16 @@ def test_empty_tool_calls_produces_empty_tool_messages_list() -> None:
     result = agent.run("query")
 
     assert result == "summary anyway"
+
+def test_raises_value_error_when_tool_call_has_no_id() -> None:
+    """Malformed tool_call without id must raise a clear error, not a Pydantic stack trace."""
+    llm = _make_llm(
+        AIMessage(
+            content="",
+            tool_calls=[{"name": "extract_video_id", "args": {"url": "x"}, "id": None, "type": "tool_call"}],  # type: ignore[typeddict-item]
+        ),
+    )
+    agent = TwoStepChainAgent(llm, [_make_tool("extract_video_id", "id123")])
+
+    with pytest.raises(ValueError, match="has no id"):
+        agent.run("query")

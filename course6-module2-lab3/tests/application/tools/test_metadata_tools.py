@@ -75,3 +75,23 @@ def test_trending_returns_error_list_on_exception() -> None:
     result = tool.invoke({"region_code": "US"})
 
     assert result == [{"error": "Failed to fetch trending videos: trending feed gone"}]
+
+def test_metadata_handles_none_values_in_fields() -> None:
+    """The contract is that any field may be None — likes/comments often disabled."""
+    client = MagicMock(spec=YouTubeMetadataClientInterface)
+    client.get_metadata.return_value = {
+        "title": "Test Video",
+        "views": 1000,
+        "duration": 600,
+        "channel": "Test Channel",
+        "likes": None,  # creator disabled likes
+        "comments": None,  # creator disabled comments
+        "chapters": [],
+    }
+
+    tool = make_get_full_metadata(client)
+    result = tool.invoke({"url": "https://youtu.be/abc"})
+
+    assert result["likes"] is None
+    assert result["comments"] is None
+    # The tool must not crash on None values, must not invent defaults

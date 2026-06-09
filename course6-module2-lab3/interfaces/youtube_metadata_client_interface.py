@@ -1,10 +1,12 @@
 from typing import Protocol
 
+from domain.video_metadata import MetadataResult
+
 
 class YouTubeMetadataClientInterface(Protocol):
     """Provides video metadata operations via yt-dlp."""
 
-    def get_metadata(self, url: str) -> dict:
+    def get_metadata(self, url: str) -> MetadataResult:
         ...
 
     def get_thumbnails(self, url: str) -> list[dict]:

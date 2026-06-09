@@ -52,8 +52,8 @@ Everything else — tools, LLM, infra clients — is identical across the three.
 | Message types         | `langchain.messages` (LangChain 1.x canonical)                          |
 | LLM provider coupling | `OpenAIChatModelProvider` behind `ChatModelProviderInterface`           |
 | External clients      | `YouTubeTranscriptApi`, `pytubefix.Search`, `yt_dlp.YoutubeDL`          |
-| Architecture          | Strict onion — domain (empty by design), interfaces, application, infra |
-| Test surface          | 75+ tests, all passing without an API key or network access             |
+| Architecture          | Strict onion — domain, interfaces, application, infra                   |
+| Test surface          | 80+ tests, all passing without an API key or network access            |
 | Strategy selection    | `AgentStrategy` enum, one-line swap in `container.py`                   |
 
 ---
@@ -116,6 +116,10 @@ course6-module2-lab3/
 │       ├── get_thumbnails.py                     # wraps YouTubeMetadataClient
 │       └── get_trending_videos.py                # wraps YouTubeMetadataClient
 │
+├── domain/
+│   ├── __init__.py
+│   └── video_metadata.py                         # MetadataResult TypedDict
+│
 ├── interfaces/
 │   ├── __init__.py
 │   ├── chat_model_provider_interface.py          # Protocol — LLM provider
@@ -126,30 +130,30 @@ course6-module2-lab3/
 ├── infra/
 │   ├── __init__.py
 │   ├── openai_chat_model.py                      # OpenAIChatModelProvider
-│   ├── youtube_transcript_api_client.py          # youtube-transcript-api
-│   ├── pytubefix_search_client.py                # pytubefix.Search
-│   └── yt_dlp_metadata_client.py                 # yt-dlp + private _YtDlpLoggerAdapter
+│   ├── youtube_transcript_api_client.py          # youtube-transcript-api + timeout wrapper
+│   ├── pytubefix_search_client.py                # pytubefix.Search + timeout wrapper
+│   └── yt_dlp_metadata_client.py                 # yt-dlp + socket_timeout + suppress_logs + _YtDlpLoggerAdapter
 │
 └── tests/
     ├── __init__.py
     ├── application/
     │   ├── __init__.py
-    │   ├── test_manual_loop_agent.py             # 5 tests, LLM mocked
-    │   ├── test_two_step_chain_agent.py          # 1 test, LLM mocked
-    │   ├── test_recursive_agent.py               # 4 tests, LLM mocked
-    │   ├── test_container.py                     # 7 tests, provider mocked
+    │   ├── test_manual_loop_agent.py             # LLM mocked
+    │   ├── test_two_step_chain_agent.py          # LLM mocked
+    │   ├── test_recursive_agent.py               # LLM mocked
+    │   ├── test_container.py                     # provider mocked
     │   └── tools/
     │       ├── __init__.py
-    │       ├── test_extract_video_id.py          # 13 tests, pure
-    │       ├── test_fetch_transcript.py          # 4 tests, client mocked
-    │       ├── test_search_youtube.py            # 4 tests, client mocked
-    │       └── test_metadata_tools.py            # 6 tests, client mocked
+    │       ├── test_extract_video_id.py          # pure regex tests
+    │       ├── test_fetch_transcript.py          # client mocked
+    │       ├── test_search_youtube.py            # client mocked
+    │       └── test_metadata_tools.py            # client mocked
     └── infra/
         ├── __init__.py
-        ├── test_openai_chat_model.py             # 3 tests, init_chat_model patched
-        ├── test_youtube_transcript_api_client.py # 3 tests, library patched
-        ├── test_pytubefix_search_client.py       # 4 tests, library patched
-        └── test_yt_dlp_metadata_client.py        # 9 tests, library patched
+        ├── test_openai_chat_model.py             # init_chat_model patched
+        ├── test_youtube_transcript_api_client.py # library patched
+        ├── test_pytubefix_search_client.py       # library patched
+        └── test_yt_dlp_metadata_client.py        # library patched
 ```
 
 ---
@@ -288,6 +292,13 @@ more failures externally. Pay the cost early.
   in 2024+. The tool is preserved with a `NOTE:` in its docstring so the
   refactor stays faithful to the lab while documenting the breakage.
   Production version would use the YouTube Data API v3.
+- **Structured error categorisation.** Per-client categoriser methods that
+  return a domain `ErrorCategory` enum without leaking library types
+  upward. New file per infra client (`*_error_categoriser.py`), one new
+  domain object (`ErrorCategory`), one application change (call
+  `infra.categorise(exc)` in `_execute_tool` instead of stringifying).
+  Adds operational visibility and lets the LLM make category-aware
+  decisions on retry vs vary-input vs stop.
 
 ---
 
@@ -298,9 +309,9 @@ using `create_agent` directly) — new class in `application/`, new enum
 value, one line in `container.py`. New external service (e.g. captions
 translation) — new interface, new infra class, new tool factory, one
 line in `container.py`. New consumer of video data (e.g. a typed JSON
-API endpoint) — domain layer earns its keep, with `VideoMetadata`,
-`Thumbnail`, and `SearchHit` modelled in `domain/` and mapped to/from
-infra returns in the application layer.
+API endpoint) — `Thumbnail` and `SearchHit` join `MetadataResult` in
+`domain/`, modelled the same way and mapped to/from infra returns in
+the application layer.
 
 The folder structure tells the story; the test suite proves the seams;
 the composition root makes orchestration choice the single swap surface.

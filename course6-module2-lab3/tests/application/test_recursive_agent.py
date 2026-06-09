@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from unittest.mock import MagicMock
 
@@ -137,3 +139,77 @@ def test_raises_type_error_when_final_content_is_not_string() -> None:
 
     with pytest.raises(TypeError, match="Expected string content"):
         agent.run("query")
+
+def test_tool_returning_dict_is_json_serialised_for_llm() -> None:
+    """Dict tool results must be JSON, not Python repr — booleans, None, and unicode must round-trip."""
+    
+    @tool
+    def dict_returning_tool(arg: str) -> dict:
+        """Test tool returning a dict with edge-case values."""
+        return {"title": "naïve résumé", "views": None, "is_live": False, "count": 100}
+    
+    dict_returning_tool.name = "dict_tool"  # type: ignore[misc]
+    
+    captured_tool_messages = []
+    
+    bound = MagicMock()
+    
+    def fake_invoke(messages):
+        # Capture the ToolMessage content the LLM would see
+        for msg in messages:
+            if hasattr(msg, "tool_call_id") and msg.tool_call_id == "call_1":
+                captured_tool_messages.append(msg.content)
+                # Stop the loop on the second invoke
+                return AIMessage(content="done")
+        return AIMessage(
+            content="",
+            tool_calls=[{"name": "dict_tool", "args": {"arg": "x"}, "id": "call_1", "type": "tool_call"}],
+        )
+    
+    bound.invoke.side_effect = fake_invoke
+    llm = MagicMock(spec=BaseChatModel)
+    llm.bind_tools.return_value = bound
+    
+    agent = RecursiveAgent(llm, [dict_returning_tool])
+    agent.run("test")
+    
+    # The content the LLM saw must be parseable JSON, not Python repr
+    assert len(captured_tool_messages) == 1
+    parsed = json.loads(captured_tool_messages[0])
+    assert parsed == {"title": "naïve résumé", "views": None, "is_live": False, "count": 100}
+
+def test_raises_value_error_when_tool_call_has_no_id() -> None:
+    """Malformed tool_call without id must raise a clear error, not a Pydantic stack trace."""
+    llm = _make_llm(
+        AIMessage(
+            content="",
+            tool_calls=[{"name": "extract_video_id", "args": {"url": "x"}, "id": None, "type": "tool_call"}],  # type: ignore[typeddict-item]
+        ),
+    )
+    agent = RecursiveAgent(llm, [_make_tool("extract_video_id", "id")])
+    
+    with pytest.raises(ValueError, match="has no id"):
+        agent.run("query")
+
+import logging
+
+
+def test_logs_exception_when_tool_raises(caplog) -> None:
+    """Tool exceptions must be logged with stack trace, not just swallowed into a string."""
+    failing_tool = _make_tool("failing", "irrelevant")
+    failing_tool.func = MagicMock(side_effect=RuntimeError("infra exploded"))  # type: ignore[attr-defined]
+
+    llm = _make_llm(
+        AIMessage(
+            content="",
+            tool_calls=[{"name": "failing", "args": {"arg": "in"}, "id": "call_1", "type": "tool_call"}],
+        ),
+        AIMessage(content="recovered"),
+    )
+    agent = RecursiveAgent(llm, [failing_tool])
+
+    with caplog.at_level(logging.ERROR):
+        agent.run("query")
+
+    assert any("failing" in record.message for record in caplog.records)
+    assert any("infra exploded" in str(record.exc_info[1]) for record in caplog.records if record.exc_info)
