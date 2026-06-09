@@ -17,6 +17,7 @@ tool = make_extract_video_id()
         ("https://youtube.com/embed/dQw4w9WgXcQ", "dQw4w9WgXcQ"),
         ("https://youtube.com/live/dQw4w9WgXcQ", "dQw4w9WgXcQ"),
         ("https://youtube.com/watch?feature=share&v=dQw4w9WgXcQ", "dQw4w9WgXcQ"),
+        ("https://youtube.com/v/dQw4w9WgXcQ", "dQw4w9WgXcQ"),
     ],
 )
 def test_extracts_video_id_from_valid_urls(url: str, expected: str) -> None:

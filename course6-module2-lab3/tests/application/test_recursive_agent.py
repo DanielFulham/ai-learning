@@ -79,3 +79,62 @@ def test_parallel_tool_calls_in_one_turn() -> None:
     agent = RecursiveAgent(llm, [_make_tool("a", "x"), _make_tool("b", "y")])
 
     assert agent.run("do both") == "parallel done"
+
+import pytest
+
+
+def test_raises_runtime_error_when_max_iterations_exceeded() -> None:
+    """A model that never stops calling tools must trip the cap before recursion blows the stack."""
+    infinite_tool_calls = [
+        AIMessage(
+            content="",
+            tool_calls=[{"name": "loop", "args": {"arg": "x"}, "id": f"call_{i}", "type": "tool_call"}],
+        )
+        for i in range(50)
+    ]
+    llm = _make_llm(*infinite_tool_calls)
+    agent = RecursiveAgent(llm, [_make_tool("loop", "x")], max_iterations=3)
+
+    with pytest.raises(RuntimeError, match="max_iterations"):
+        agent.run("loop forever")
+
+
+def test_custom_max_iterations_respected() -> None:
+    responses = [
+        AIMessage(
+            content="",
+            tool_calls=[{"name": "step", "args": {"arg": "x"}, "id": f"call_{i}", "type": "tool_call"}],
+        )
+        for i in range(10)
+    ]
+    llm = _make_llm(*responses)
+    agent = RecursiveAgent(llm, [_make_tool("step", "x")], max_iterations=2)
+
+    with pytest.raises(RuntimeError, match="max_iterations \\(2\\)"):
+        agent.run("query")
+
+def test_unknown_tool_name_returns_structured_error_to_llm() -> None:
+    """LLM hallucinated tool name should produce a clear error, not a KeyError."""
+    llm = _make_llm(
+        AIMessage(
+            content="",
+            tool_calls=[{"name": "nonexistent_tool", "args": {}, "id": "call_1", "type": "tool_call"}],
+        ),
+        AIMessage(content="recovered"),
+    )
+
+    agent = RecursiveAgent(llm, [_make_tool("a", "x"), _make_tool("b", "y")])
+
+    result = agent.run("query")
+
+    assert result == "recovered"
+
+def test_raises_type_error_when_final_content_is_not_string() -> None:
+    """Multimodal-style content blocks must not silently leak through the str return type."""
+    llm = _make_llm(
+        AIMessage(content=[{"type": "text", "text": "block-formatted response"}]),  # type: ignore[arg-type]
+    )
+    agent = RecursiveAgent(llm, [_make_tool("a", "x")])
+    
+    with pytest.raises(TypeError, match="Expected string content"):
+        agent.run("query")

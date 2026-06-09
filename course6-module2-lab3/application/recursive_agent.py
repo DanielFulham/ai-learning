@@ -2,6 +2,7 @@ from langchain.messages import HumanMessage, ToolMessage
 from langchain.tools import BaseTool
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AnyMessage
+from langchain_core.messages.tool import ToolCall
 from langchain_core.runnables import RunnableLambda
 
 from application.interfaces.video_agent_interface import VideoAgentInterface
@@ -13,15 +14,23 @@ class RecursiveAgent(VideoAgentInterface):
     The model decides how many tool calls are needed. The loop terminates when
     the model emits an AIMessage with no tool_calls. This is the shape
     production agent frameworks (create_agent, LangGraph) use internally,
-    with extra niceties around iteration caps, retries, and observability.
+    with extra niceties around retries and observability.
 
-    No max-iteration cap in this implementation. Production code should add
-    one — a misbehaving model can loop until the context length is exceeded.
+    Capped at max_iterations rounds. The underlying implementation uses
+    Python recursion, so the cap also protects against blowing the call
+    stack — a misbehaving model that loops forever would otherwise raise
+    RecursionError after ~1000 frames.
     """
 
-    def __init__(self, llm: BaseChatModel, tools: list[BaseTool]) -> None:
+    def __init__(
+        self,
+        llm: BaseChatModel,
+        tools: list[BaseTool],
+        max_iterations: int = 25,
+    ) -> None:
         self._tools = {t.name: t for t in tools}
         self._llm_with_tools = llm.bind_tools(tools)
+        self._max_iterations = max_iterations
         self._chain = self._build_chain()
 
     def run(self, query: str) -> str:
@@ -31,9 +40,15 @@ class RecursiveAgent(VideoAgentInterface):
             raise TypeError(f"Expected string content from final AIMessage, got {type(final).__name__}")
         return final
 
-    def _execute_tool(self, tool_call: dict) -> ToolMessage:
+    def _execute_tool(self, tool_call: ToolCall) -> ToolMessage:
+        name = tool_call["name"]
+        if name not in self._tools:
+            return ToolMessage(
+                content=f"Error: Unknown tool '{name}'. Available tools: {sorted(self._tools.keys())}",
+                tool_call_id=tool_call["id"],
+            )
         try:
-            result = self._tools[tool_call["name"]].invoke(tool_call["args"])
+            result = self._tools[name].invoke(tool_call["args"])
             content = result if isinstance(result, str) else str(result)
         except Exception as e:
             content = f"Error: {str(e)}"
@@ -51,9 +66,13 @@ class RecursiveAgent(VideoAgentInterface):
     def _should_continue(self, messages: list[AnyMessage]) -> bool:
         return bool(getattr(messages[-1], "tool_calls", None))
 
-    def _recurse(self, messages: list[AnyMessage]) -> list[AnyMessage]:
+    def _recurse(self, messages: list[AnyMessage], iteration: int = 0) -> list[AnyMessage]:
         if self._should_continue(messages):
-            return self._recurse(self._process_tool_calls(messages))
+            if iteration >= self._max_iterations:
+                raise RuntimeError(
+                    f"Agent exceeded max_iterations ({self._max_iterations}) without producing a final answer"
+                )
+            return self._recurse(self._process_tool_calls(messages), iteration + 1)
         return messages
 
     def _build_chain(self):

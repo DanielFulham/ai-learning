@@ -28,18 +28,17 @@ def test_passes_max_results_through() -> None:
 
     client.search.assert_called_once_with("test", 10)
 
-
-def test_returns_error_string_on_exception() -> None:
+def test_returns_structured_error_on_exception() -> None:
     client = MagicMock(spec=YouTubeSearchClientInterface)
     client.search.side_effect = RuntimeError("rate limited")
 
     tool = make_search_youtube(client)
     result = tool.invoke({"query": "test"})
 
-    assert result == "Error: rate limited"
-
+    assert result == [{"error": "Search failed: rate limited"}]
 
 def test_tool_name() -> None:
     client = MagicMock(spec=YouTubeSearchClientInterface)
     tool = make_search_youtube(client)
     assert tool.name == "search_youtube"
+

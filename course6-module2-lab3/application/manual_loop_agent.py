@@ -13,18 +13,34 @@ class ManualLoopAgent(VideoAgentInterface):
     Uses a while-loop that runs until the model emits an AIMessage with no
     tool_calls. The simplest of the three orchestrations — no LCEL, no
     recursion, just a list and a loop. This is the shape lab23 used.
+
+    Capped at max_iterations rounds. A misbehaving model that never stops
+    calling tools will hit the cap and raise rather than exhausting the
+    LLM provider's context window or rate limits.
     """
 
-    def __init__(self, llm: BaseChatModel, tools: list[BaseTool]) -> None:
+    def __init__(
+        self,
+        llm: BaseChatModel,
+        tools: list[BaseTool],
+        max_iterations: int = 25,
+    ) -> None:
         self._tools = {t.name: t for t in tools}
         self._llm_with_tools = llm.bind_tools(tools)
+        self._max_iterations = max_iterations
 
     def run(self, query: str) -> str:
         messages: list[AnyMessage] = [HumanMessage(content=query)]
         response = self._llm_with_tools.invoke(messages)
         messages.append(response)
 
+        iteration = 0
         while getattr(messages[-1], "tool_calls", None):
+            if iteration >= self._max_iterations:
+                raise RuntimeError(
+                    f"Agent exceeded max_iterations ({self._max_iterations}) without producing a final answer"
+                )
+
             last = messages[-1]
             if not isinstance(last, AIMessage):
                 raise TypeError(f"Expected AIMessage at top of loop, got {type(last).__name__}")
@@ -35,6 +51,7 @@ class ManualLoopAgent(VideoAgentInterface):
 
             response = self._llm_with_tools.invoke(messages)
             messages.append(response)
+            iteration += 1
 
         final = messages[-1].content
         if not isinstance(final, str):
@@ -42,8 +59,14 @@ class ManualLoopAgent(VideoAgentInterface):
         return final
 
     def _execute_tool(self, tool_call: ToolCall) -> ToolMessage:
+        name = tool_call["name"]
+        if name not in self._tools:
+            return ToolMessage(
+                content=f"Error: Unknown tool '{name}'. Available tools: {sorted(self._tools.keys())}",
+                tool_call_id=tool_call["id"],
+            )
         try:
-            result = self._tools[tool_call["name"]].invoke(tool_call["args"])
+            result = self._tools[name].invoke(tool_call["args"])
             content = result if isinstance(result, str) else str(result)
         except Exception as e:
             content = f"Error: {str(e)}"

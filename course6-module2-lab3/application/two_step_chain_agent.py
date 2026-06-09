@@ -1,5 +1,6 @@
 from langchain.messages import HumanMessage, ToolMessage
 from langchain.tools import BaseTool
+from langchain_core.messages.tool import ToolCall
 from langchain_core.language_models import BaseChatModel
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
 
@@ -7,12 +8,15 @@ from application.interfaces.video_agent_interface import VideoAgentInterface
 
 
 class TwoStepChainAgent(VideoAgentInterface):
-    """Agent that hardcodes exactly two LLM-tool round-trips before summarising.
+    """Agent that invokes the LLM exactly three times, regardless of query shape.
 
-    Works for queries that need exactly two tools in sequence (e.g.
-    extract_video_id then fetch_transcript). Fails for queries needing
-    more or fewer steps. Included to demonstrate the cost of hardcoded
-    orchestration vs the recursive shape.
+    Works correctly for queries needing exactly two tool calls in sequence
+    (e.g. extract_video_id then fetch_transcript). For queries needing zero,
+    one, or three+ tools, this agent produces incorrect results silently —
+    the structure runs to completion but the output is meaningless. Included
+    to demonstrate the cost of hardcoded orchestration vs the recursive shape.
+
+    Test coverage pins both the happy path and the silent-failure modes.
     """
 
     def __init__(self, llm: BaseChatModel, tools: list[BaseTool]) -> None:
@@ -26,9 +30,15 @@ class TwoStepChainAgent(VideoAgentInterface):
             raise TypeError(f"Expected string from chain, got {type(result).__name__}")
         return result
 
-    def _execute_tool(self, tool_call: dict) -> ToolMessage:
+    def _execute_tool(self, tool_call: ToolCall) -> ToolMessage:
+        name = tool_call["name"]
+        if name not in self._tools:
+            return ToolMessage(
+                content=f"Error: Unknown tool '{name}'. Available tools: {sorted(self._tools.keys())}",
+                tool_call_id=tool_call["id"],
+            )
         try:
-            result = self._tools[tool_call["name"]].invoke(tool_call["args"])
+            result = self._tools[name].invoke(tool_call["args"])
             content = result if isinstance(result, str) else str(result)
         except Exception as e:
             content = f"Error: {str(e)}"

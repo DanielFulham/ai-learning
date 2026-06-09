@@ -25,4 +25,4 @@ def make_fetch_transcript(client: TranscriptClientInterface) -> BaseTool:
         except Exception as e:
             return f"Error: {str(e)}"
 
-    return fetch_transcript  # type: ignore[return-value]
+    return fetch_transcript

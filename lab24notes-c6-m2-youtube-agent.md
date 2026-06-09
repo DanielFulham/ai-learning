@@ -53,7 +53,7 @@ Everything else — tools, LLM, infra clients — is identical across the three.
 | LLM provider coupling | `OpenAIChatModelProvider` behind `ChatModelProviderInterface`           |
 | External clients      | `YouTubeTranscriptApi`, `pytubefix.Search`, `yt_dlp.YoutubeDL`          |
 | Architecture          | Strict onion — domain (empty by design), interfaces, application, infra |
-| Test surface          | 63 tests, all passing without an API key or network access              |
+| Test surface          | 75+ tests, all passing without an API key or network access             |
 | Strategy selection    | `AgentStrategy` enum, one-line swap in `container.py`                   |
 
 ---
@@ -273,10 +273,6 @@ more failures externally. Pay the cost early.
 
 ## What This Doesn't Cover
 
-- **Max-iteration cap.** `RecursiveAgent` will loop until the model
-  stops emitting tool calls. A misbehaving model can drive the context
-  length to exhaustion. Production code should accept `max_iterations`
-  in the constructor and raise with a clear error after exhaustion.
 - **Streaming.** All agents use `.invoke()`. For token-level streaming,
   the recursive shape would need restructuring as a generator — LCEL's
   streaming model doesn't propagate through arbitrary Python recursion.

@@ -23,4 +23,4 @@ def make_get_full_metadata(client: YouTubeMetadataClientInterface) -> BaseTool:
         except Exception as e:
             return {"error": str(e)}
 
-    return get_full_metadata  # type: ignore[return-value]
+    return get_full_metadata

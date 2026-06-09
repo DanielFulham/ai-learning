@@ -1,5 +1,3 @@
-from typing import Union
-
 from langchain.tools import BaseTool, tool
 
 from interfaces.youtube_search_client_interface import YouTubeSearchClientInterface
@@ -9,7 +7,7 @@ def make_search_youtube(client: YouTubeSearchClientInterface) -> BaseTool:
     """Factory for the search_youtube tool."""
 
     @tool
-    def search_youtube(query: str, max_results: int = 5) -> Union[list[dict], str]:
+    def search_youtube(query: str, max_results: int = 5) -> list[dict]:
         """
         Search YouTube for videos matching the query.
 
@@ -20,11 +18,11 @@ def make_search_youtube(client: YouTubeSearchClientInterface) -> BaseTool:
         Returns:
             List of dicts with video titles, IDs, and URLs:
             [{'title': 'Video Title', 'video_id': 'abc123', 'url': 'https://youtu.be/abc123'}, ...]
-            Returns an error string starting with 'Error:' if search fails.
+            On error, returns a list with a single error dict: [{'error': '...'}].
         """
         try:
             return client.search(query, max_results)
         except Exception as e:
-            return f"Error: {str(e)}"
+            return [{"error": f"Search failed: {str(e)}"}]
 
-    return search_youtube  # type: ignore[return-value]
+    return search_youtube

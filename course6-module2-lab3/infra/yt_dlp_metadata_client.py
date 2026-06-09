@@ -1,6 +1,5 @@
 import logging
 from typing import cast
-import sys
 
 import yt_dlp
 
@@ -16,10 +15,8 @@ class _YtDlpLoggerAdapter:
     contained to one file at the boundary.
     """
 
-    stdout = sys.stdout
-    stderr = sys.stderr
-
     def __init__(self, ydl: "yt_dlp.YoutubeDL | None" = None) -> None:
+        # ydl parameter accepted to match yt-dlp logger protocol signature; unused here
         self._logger = logging.getLogger("yt_dlp")
 
     def debug(self, message: str) -> None:
@@ -33,7 +30,6 @@ class _YtDlpLoggerAdapter:
 
     def error(self, message: str) -> None:
         self._logger.error(message)
-
 
 class YtDlpMetadataClient(YouTubeMetadataClientInterface):
     """Concrete client for yt-dlp metadata operations.
