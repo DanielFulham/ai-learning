@@ -138,3 +138,41 @@ def test_trending_clamps_max_results() -> None:
         client = YtDlpMetadataClient()
         result = client.get_trending("US", max_results=999)
     assert len(result) == 50
+
+
+# --- configuration ---
+
+
+def test_socket_timeout_included_in_ydl_opts() -> None:
+    """yt-dlp must be constructed with socket_timeout so hung connections don't block forever."""
+    with patch("infra.yt_dlp_metadata_client.yt_dlp.YoutubeDL") as mock_ydl_cls:  # type: ignore[attr-defined]
+        mock_instance = MagicMock()
+        mock_instance.__enter__ = MagicMock(return_value=mock_instance)
+        mock_instance.__exit__ = MagicMock(return_value=False)
+        mock_instance.extract_info.return_value = None
+        mock_ydl_cls.return_value = mock_instance
+
+        client = YtDlpMetadataClient()
+        client.get_metadata("https://youtu.be/abc")
+
+        call_kwargs = mock_ydl_cls.call_args[0][0]
+        assert "socket_timeout" in call_kwargs
+        assert call_kwargs["socket_timeout"] > 0
+
+
+def test_suppress_logs_true_sets_yt_dlp_log_level_to_error() -> None:
+    """Default suppress_logs=True must raise yt_dlp logger to ERROR."""
+    import logging
+
+    logging.getLogger("yt_dlp").setLevel(logging.DEBUG)  # start permissive
+    YtDlpMetadataClient(suppress_logs=True)
+    assert logging.getLogger("yt_dlp").level == logging.ERROR
+
+
+def test_suppress_logs_false_leaves_log_level_untouched() -> None:
+    """suppress_logs=False must not mutate global yt-dlp logger state."""
+    import logging
+
+    logging.getLogger("yt_dlp").setLevel(logging.DEBUG)
+    YtDlpMetadataClient(suppress_logs=False)
+    assert logging.getLogger("yt_dlp").level == logging.DEBUG

@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from infra.youtube_transcript_api_client import YouTubeTranscriptApiClient
 
 
@@ -39,8 +41,6 @@ def test_fetch_passes_language_through() -> None:
 
 
 def test_fetch_raises_when_underlying_raises() -> None:
-    import pytest
-
     with patch("infra.youtube_transcript_api_client.YouTubeTranscriptApi") as mock_api:
         mock_instance = MagicMock()
         mock_instance.fetch.side_effect = ValueError("transcripts disabled")
@@ -48,4 +48,23 @@ def test_fetch_raises_when_underlying_raises() -> None:
 
         client = YouTubeTranscriptApiClient()
         with pytest.raises(ValueError, match="transcripts disabled"):
+            client.fetch("abc123")
+
+
+@pytest.mark.slow
+def test_fetch_raises_timeout_error_when_hung(blocking_barrier) -> None:
+    """A hung network call must raise TimeoutError, not block the thread indefinitely."""
+    def slow_fetch(*args, **kwargs):
+        blocking_barrier.wait(timeout=30)
+        return MagicMock(snippets=[])
+
+    with patch("infra.youtube_transcript_api_client.YouTubeTranscriptApi") as mock_api:
+        mock_instance = MagicMock()
+        mock_instance.fetch.side_effect = slow_fetch
+        mock_api.return_value = mock_instance
+
+        client = YouTubeTranscriptApiClient()
+        client._TIMEOUT_SECONDS = 0.05  # type: ignore[attr-defined]
+
+        with pytest.raises(TimeoutError, match="exceeded"):
             client.fetch("abc123")

@@ -53,7 +53,7 @@ Everything else — tools, LLM, infra clients — is identical across the three.
 | LLM provider coupling | `OpenAIChatModelProvider` behind `ChatModelProviderInterface`           |
 | External clients      | `YouTubeTranscriptApi`, `pytubefix.Search`, `yt_dlp.YoutubeDL`          |
 | Architecture          | Strict onion — domain, interfaces, application, infra                   |
-| Test surface          | 80+ tests, all passing without an API key or network access            |
+| Test surface          | 91 tests (89 unit + 2 `@pytest.mark.slow` concurrency integration), no API key or network access |
 | Strategy selection    | `AgentStrategy` enum, one-line swap in `container.py`                   |
 
 ---

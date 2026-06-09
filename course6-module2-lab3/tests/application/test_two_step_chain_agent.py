@@ -120,3 +120,70 @@ def test_raises_value_error_when_tool_call_has_no_id() -> None:
 
     with pytest.raises(ValueError, match="has no id"):
         agent.run("query")
+
+
+def test_tool_returning_dict_is_json_serialised_for_llm() -> None:
+    """Dict tool results must be JSON, not Python repr — booleans, None, and unicode must round-trip."""
+    import json
+
+    @tool
+    def dict_returning_tool(arg: str) -> dict:
+        """Test tool returning a dict with edge-case values."""
+        return {"title": "naïve résumé", "views": None, "is_live": False, "count": 100}
+
+    dict_returning_tool.name = "dict_tool"  # type: ignore[misc]
+
+    captured_tool_messages = []
+
+    bound = MagicMock()
+
+    call_count = 0
+
+    def fake_invoke(messages):
+        nonlocal call_count
+        call_count += 1
+        for msg in messages:
+            if hasattr(msg, "tool_call_id") and msg.tool_call_id == "call_1":
+                captured_tool_messages.append(msg.content)
+        if call_count == 1:
+            return AIMessage(
+                content="",
+                tool_calls=[{"name": "dict_tool", "args": {"arg": "x"}, "id": "call_1", "type": "tool_call"}],
+            )
+        # Subsequent calls return no tool calls (chain always makes 3 LLM calls total)
+        return AIMessage(content="done")
+
+    bound.invoke.side_effect = fake_invoke
+    llm = MagicMock(spec=BaseChatModel)
+    llm.bind_tools.return_value = bound
+
+    agent = TwoStepChainAgent(llm, [dict_returning_tool])
+    agent.run("test")
+
+    assert len(captured_tool_messages) >= 1
+    parsed = json.loads(captured_tool_messages[0])
+    assert parsed == {"title": "naïve résumé", "views": None, "is_live": False, "count": 100}
+
+
+def test_logs_exception_when_tool_raises(caplog) -> None:
+    """Tool exceptions must be logged with stack trace, not just swallowed into a string."""
+    import logging
+
+    failing_tool = _make_tool("failing", "irrelevant")
+    failing_tool.func = MagicMock(side_effect=RuntimeError("infra exploded"))  # type: ignore[attr-defined]
+
+    llm = _make_llm(
+        AIMessage(
+            content="",
+            tool_calls=[{"name": "failing", "args": {"arg": "in"}, "id": "call_1", "type": "tool_call"}],
+        ),
+        AIMessage(content="", tool_calls=[]),
+        AIMessage(content="recovered"),
+    )
+    agent = TwoStepChainAgent(llm, [failing_tool])
+
+    with caplog.at_level(logging.ERROR):
+        agent.run("query")
+
+    assert any("failing" in record.message for record in caplog.records)
+    assert any("infra exploded" in str(record.exc_info[1]) for record in caplog.records if record.exc_info)

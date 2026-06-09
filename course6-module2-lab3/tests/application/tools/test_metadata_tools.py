@@ -30,6 +30,32 @@ def test_metadata_returns_error_dict_on_exception() -> None:
     assert result == {"error": "video unavailable"}
 
 
+def test_metadata_passes_none_fields_through_without_substitution() -> None:
+    """None values from yt-dlp must be passed to the LLM unchanged, not replaced with defaults.
+
+    YouTube returns None for restricted videos, age-gated content, and
+    creator-disabled metrics. Silently substituting a default (e.g. 0 for views)
+    would mislead the LLM into stating facts it doesn't have.
+    """
+    client = MagicMock(spec=YouTubeMetadataClientInterface)
+    client.get_metadata.return_value = {
+        "title": "Age Restricted Video",
+        "views": None,
+        "duration": None,
+        "channel": None,
+        "likes": None,
+        "comments": None,
+        "chapters": [],
+    }
+
+    tool = make_get_full_metadata(client)
+    result = tool.invoke({"url": "https://youtu.be/abc"})
+
+    assert result["views"] is None
+    assert result["likes"] is None
+    assert result["comments"] is None
+
+
 # --- get_thumbnails ---
 
 
@@ -75,23 +101,3 @@ def test_trending_returns_error_list_on_exception() -> None:
     result = tool.invoke({"region_code": "US"})
 
     assert result == [{"error": "Failed to fetch trending videos: trending feed gone"}]
-
-def test_metadata_handles_none_values_in_fields() -> None:
-    """The contract is that any field may be None — likes/comments often disabled."""
-    client = MagicMock(spec=YouTubeMetadataClientInterface)
-    client.get_metadata.return_value = {
-        "title": "Test Video",
-        "views": 1000,
-        "duration": 600,
-        "channel": "Test Channel",
-        "likes": None,  # creator disabled likes
-        "comments": None,  # creator disabled comments
-        "chapters": [],
-    }
-
-    tool = make_get_full_metadata(client)
-    result = tool.invoke({"url": "https://youtu.be/abc"})
-
-    assert result["likes"] is None
-    assert result["comments"] is None
-    # The tool must not crash on None values, must not invent defaults

@@ -1,3 +1,4 @@
+import pytest
 from unittest.mock import MagicMock, patch
 
 from infra.pytubefix_search_client import PytubefixSearchClient
@@ -54,3 +55,16 @@ def test_search_default_max_results_is_five() -> None:
         result = client.search("test")
 
         assert len(result) == 5
+
+def test_search_raises_timeout_error_when_hung(blocking_barrier) -> None:
+    """A hung network call must raise TimeoutError, not block the thread indefinitely."""
+    def slow_search(query):
+        blocking_barrier.wait(timeout=30)
+        return MagicMock(videos=[])
+
+    with patch("infra.pytubefix_search_client.Search", side_effect=slow_search):
+        client = PytubefixSearchClient()
+        client._TIMEOUT_SECONDS = 0.05  # type: ignore[attr-defined]
+
+        with pytest.raises(TimeoutError, match="exceeded"):
+            client.search("test")

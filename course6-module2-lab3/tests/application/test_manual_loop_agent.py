@@ -213,3 +213,26 @@ def test_raises_value_error_when_tool_call_has_no_id() -> None:
     
     with pytest.raises(ValueError, match="has no id"):
         agent.run("query")
+
+
+def test_logs_exception_when_tool_raises(caplog) -> None:
+    """Tool exceptions must be logged with stack trace, not just swallowed into a string."""
+    import logging
+
+    failing_tool = _make_tool("failing", "irrelevant")
+    failing_tool.func = MagicMock(side_effect=RuntimeError("infra exploded"))  # type: ignore[attr-defined]
+
+    llm = _make_llm(
+        AIMessage(
+            content="",
+            tool_calls=[{"name": "failing", "args": {"arg": "in"}, "id": "call_1", "type": "tool_call"}],
+        ),
+        AIMessage(content="recovered"),
+    )
+    agent = ManualLoopAgent(llm, [failing_tool])
+
+    with caplog.at_level(logging.ERROR):
+        agent.run("query")
+
+    assert any("failing" in record.message for record in caplog.records)
+    assert any("infra exploded" in str(record.exc_info[1]) for record in caplog.records if record.exc_info)
