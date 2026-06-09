@@ -56,6 +56,8 @@ def test_search_default_max_results_is_five() -> None:
 
         assert len(result) == 5
 
+
+@pytest.mark.slow
 def test_search_raises_timeout_error_when_hung(blocking_barrier) -> None:
     """A hung network call must raise TimeoutError, not block the thread indefinitely."""
     def slow_search(query):

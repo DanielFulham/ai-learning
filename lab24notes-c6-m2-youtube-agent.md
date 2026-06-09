@@ -95,7 +95,8 @@ course6-module2-lab3/
 ├── manual_loop_demo.py                           # entry: strategy=MANUAL_LOOP
 ├── two_step_chain_demo.py                        # entry: strategy=TWO_STEP_CHAIN
 ├── recursive_agent_demo.py                       # entry: strategy=RECURSIVE
-├── conftest.py                                   # pytest sys.path setup
+├── conftest.py                                   # pytest sys.path setup + blocking_barrier fixture
+├── pytest.ini                                    # registers @pytest.mark.slow
 ├── .env
 │
 ├── application/
