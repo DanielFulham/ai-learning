@@ -28,5 +28,5 @@ class AgentTrace:
     """The full record of one DataVizAgent.run_with_trace call."""
 
     query: str
-    tool_calls: list[ToolCallRecord]
+    tool_calls: tuple[ToolCallRecord, ...]
     final_answer: str

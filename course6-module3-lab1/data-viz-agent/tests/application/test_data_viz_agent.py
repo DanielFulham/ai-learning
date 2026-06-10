@@ -14,6 +14,7 @@ The LLM and create_agent are both patched so no API calls happen.
 
 from unittest.mock import MagicMock, patch
 
+from matplotlib.pylab import trace
 import pytest
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
@@ -109,8 +110,8 @@ def test_run_with_trace_returns_agent_trace(fake_llm: MagicMock, fake_tool: Magi
     assert isinstance(trace, AgentTrace)
     assert trace.query == "query"
     assert trace.final_answer == "answer"
-    assert trace.tool_calls == []
-
+    assert trace.tool_calls == ()
+    
 
 def test_run_with_trace_captures_single_tool_call(
     fake_llm: MagicMock, fake_tool: MagicMock
@@ -254,4 +255,17 @@ def test_raises_when_final_content_is_not_str(
     with patch("application.data_viz_agent.create_agent", return_value=compiled):
         agent = DataVizAgent(llm=fake_llm, tools=[fake_tool], system_prompt="test")
         with pytest.raises(RuntimeError, match="Expected final message content to be str"):
+            agent.run("query")
+
+def test_raises_on_empty_message_list(
+    fake_llm: MagicMock, fake_tool: MagicMock
+) -> None:
+    """If the agent ever returns an empty message list (framework bug or
+    aggressive timeout), surface a clear RuntimeError rather than the
+    IndexError that messages[-1] would produce."""
+    compiled = MagicMock()
+    compiled.invoke.return_value = {"messages": []}
+    with patch("application.data_viz_agent.create_agent", return_value=compiled):
+        agent = DataVizAgent(llm=fake_llm, tools=[fake_tool], system_prompt="test")
+        with pytest.raises(RuntimeError, match="no messages"):
             agent.run("query")

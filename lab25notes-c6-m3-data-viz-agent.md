@@ -45,7 +45,7 @@ debugging and observability.
 | LLM provider coupling | `OpenAIChatModelProvider` behind `ChatModelProviderInterface`           |
 | Trace surface         | `AgentTrace` domain object with `ToolCallRecord` per tool invocation    |
 | Architecture          | Strict onion — domain, interfaces, application, infra                   |
-| Test surface          | 51 tests across 6 files, all passing without an API key                 |
+| Test surface          | 66 tests across 6 files, all passing without an API key                 |
 | Entry point           | `demo.py` runs `initialise(df=...)` against a CSV                       |
 
 ---
@@ -268,7 +268,7 @@ Lab 23's manual dispatch, now applied to trace extraction.
 
 ## Tests as Architectural Specification
 
-The 51 tests pin both behaviour and design decisions:
+The 66 tests pin both behaviour and design decisions:
 
 **Behaviour:**
 
@@ -326,6 +326,14 @@ The 51 tests pin both behaviour and design decisions:
   destructive code, results would interleave. No defence against this
   in the current architecture. Production version would either deep-copy
   on initialisation or expose the DataFrame as immutable.
+- **Behavioural eval of LLM tool-use compliance.** The 66-test suite
+  verifies the tool contract behaves correctly when called; it does
+  not verify that the LLM calls the tool at the right times with the
+  right arguments. The Production Insights section notes that tool
+  docstrings are the LLM's API contract — when their phrasing shifts,
+  behaviour can shift silently with no test failure. Catching this
+  requires an eval harness that asserts on agent behaviour (e.g.
+  "every chart query produced a saved figure"), not just unit tests.
 
 ---
 

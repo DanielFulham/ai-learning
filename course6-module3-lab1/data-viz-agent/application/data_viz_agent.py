@@ -21,7 +21,7 @@ For now there is no such variation, so the interface stays unwritten.
 
 from langchain.agents import create_agent
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 from langchain_core.tools import BaseTool
 
 from domain.agent_trace import AgentTrace, ToolCallRecord
@@ -63,7 +63,7 @@ class DataVizAgent:
         )
 
     @staticmethod
-    def _extract_tool_calls(messages: list) -> list[ToolCallRecord]:
+    def _extract_tool_calls(messages: list[BaseMessage]) -> tuple[ToolCallRecord, ...]:
         """Walk the message stream and pair each tool call with its result."""
         results_by_id: dict[str, str] = {
             msg.tool_call_id: str(msg.content)
@@ -83,11 +83,13 @@ class DataVizAgent:
                             result=results_by_id.get(call_id, ""),
                         )
                     )
-        return records
+        return tuple(records)
 
     @staticmethod
     def _extract_final_answer(messages: list) -> str:
         """Return the content of the final AIMessage in the trace."""
+        if not messages:
+            raise RuntimeError("Agent produced no messages")
         final_message = messages[-1]
         if not isinstance(final_message, AIMessage):
             raise RuntimeError(

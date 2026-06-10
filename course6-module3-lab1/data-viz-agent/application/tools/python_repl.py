@@ -6,12 +6,8 @@ the figure store, exposing them to agent code via `df`, `pd`, `plt`, and
 `save_figure` — a function the agent calls to persist a matplotlib Figure
 through the configured store.
 
-Figure persistence is explicit, not inferred. The agent decides what to
-save by passing a Figure object to `save_figure`. The tool does not
-inspect matplotlib's global figure state, does not call plt.close, and
-has no opinion about which figures should be persisted. This eliminates
-the class of bugs that arise from heuristics over pyplot's process-global
-state.
+Each tool invocation gets a fresh namespace seeded with the pre-bound
+names. Variables defined in agent code do not persist between calls.
 
 Same factory pattern Lab 24 used for the YouTube tools (make_fetch_transcript,
 make_get_full_metadata) — tools wrap their dependencies via closure, the
@@ -56,7 +52,8 @@ def make_python_repl(
         """
         return figure_store.save(figure)
 
-    repl_locals: dict[str, object] = {
+    # Pre-bound names available to every tool invocation.
+    base_namespace: dict[str, object] = {
         "df": df,
         "pd": pd,
         "plt": plt,
@@ -71,14 +68,18 @@ def make_python_repl(
         - `df`     — the pandas DataFrame
         - `pd`     — pandas
         - `plt`    — matplotlib.pyplot
+        - `save_figure(fig)` — saves a matplotlib Figure and returns the
+          saved path. You MUST call save_figure(fig) for every chart you
+          create, or the chart will be lost.
 
-        To save a matplotlib figure, call `save_figure(fig)`. It returns the
-        saved reference (e.g. a file path) which you should mention in your
-        answer. Do not call plt.show() — it has no effect in this environment.
+        Do not call plt.show() — it has no effect in this environment.
 
         Returns the value of the final expression, or stdout if the code
         only prints, or '(no output)' if neither.
         """
+        # Fresh namespace per call, seeded from the closure-captured base.
+        repl_locals = dict(base_namespace)
+
         try:
             tree = ast.parse(code, mode="exec")
             buf = io.StringIO()

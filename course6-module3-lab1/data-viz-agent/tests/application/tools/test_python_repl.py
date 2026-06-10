@@ -82,6 +82,31 @@ def test_multiline_code_with_final_expression(
     result = tool.invoke({"code": "x = df['age'].max()\nx * 2"})
     assert result == "70"
 
+def test_variables_do_not_persist_across_invocations(
+    sample_df: pd.DataFrame, figure_store: MagicMock
+) -> None:
+    """Each tool invocation gets a fresh namespace. Variables defined in
+    agent code in one call are gone by the next."""
+    tool = make_python_repl(sample_df, figure_store)
+
+    tool.invoke({"code": "x = 42"})
+    result = tool.invoke({"code": "x"})
+
+    assert result.startswith("Error: NameError")
+
+
+def test_shadowing_prebound_name_does_not_persist(
+    sample_df: pd.DataFrame, figure_store: MagicMock
+) -> None:
+    """If agent code reassigns df, pd, plt, or save_figure, the change is
+    scoped to that single invocation. The next call sees the original
+    pre-bound values."""
+    tool = make_python_repl(sample_df, figure_store)
+
+    tool.invoke({"code": "df = 'corrupted'"})
+    result = tool.invoke({"code": "len(df)"})
+
+    assert result == "3"
 
 # --- Statement-only execution ---
 
