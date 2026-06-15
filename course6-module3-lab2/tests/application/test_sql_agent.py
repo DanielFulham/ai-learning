@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 from langchain_core.tools import BaseTool
+import pytest
 
 from application.sql_agent import SqlAgent
 from domain.models import AgentTrace
@@ -107,7 +108,7 @@ def test_ask_returns_final_message_content_as_string():
     assert result == "There are 347 albums."
 
 
-def test_ask_returns_stringified_content_when_message_content_is_non_string():
+def test_ask_raises_when_message_content_is_not_str():
     trace = AgentTrace()
     llm = MagicMock(spec=BaseChatModel)
     compiled = MagicMock()
@@ -117,9 +118,8 @@ def test_ask_returns_stringified_content_when_message_content_is_non_string():
 
     with patch("application.sql_agent.create_agent", return_value=compiled):
         agent = SqlAgent(llm=llm, tools=[], dialect="sqlite", trace=trace)
-        result = agent.ask("How many albums?")
-
-    assert isinstance(result, str)
+        with pytest.raises(TypeError, match="Expected str content"):
+            agent.ask("How many albums?")
 
 
 def test_ask_can_be_called_multiple_times_against_same_compiled_agent():

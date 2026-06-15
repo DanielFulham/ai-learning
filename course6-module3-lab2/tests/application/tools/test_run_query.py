@@ -25,7 +25,9 @@ def test_tool_description_matches_canonical_toolkit():
         "Input to this tool is a detailed and correct SQL query, output is "
         "a result from the database. If the query is not correct, an error "
         "message will be returned. If an error is returned, rewrite the "
-        "query, check the query, and try again."
+        "query, check the query, and try again. If you encounter an issue "
+        "with Unknown column 'xxxx' in 'field list', use sql_db_schema to "
+        "query the correct table fields."
     )
 
 

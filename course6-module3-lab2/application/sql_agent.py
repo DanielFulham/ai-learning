@@ -56,7 +56,12 @@ class SqlAgent:
         result = self._agent.invoke(
             {"messages": [{"role": "user", "content": question}]}
         )
-        return str(result["messages"][-1].content)
+        content = result["messages"][-1].content
+        if not isinstance(content, str):
+            raise TypeError(
+                f"Expected str content from final AIMessage, got {type(content).__name__}"
+            )
+        return content
 
     @property
     def trace(self) -> AgentTrace:

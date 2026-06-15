@@ -7,8 +7,6 @@ from langgraph.prebuilt.tool_node import ToolRuntime
 from application.middleware import make_log_tool_call_middleware
 from domain.models import AgentTrace
 
-from unittest.mock import MagicMock
-
 
 def _make_request(
     tool_call_id: str = "call_abc",

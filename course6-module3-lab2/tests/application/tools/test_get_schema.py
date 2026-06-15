@@ -31,11 +31,12 @@ def test_tool_description_matches_canonical_toolkit():
     db = _make_db_with_tables(["Album"])
     tool = make_get_schema(db)
     assert tool.description == (
-        "Input is a comma-separated list of tables, output is the schema "
-        "and sample rows for those tables. Be sure that the tables actually "
-        "exist by calling sql_db_list_tables first!"
+        "Input to this tool is a comma-separated list of tables, output is "
+        "the schema and sample rows for those tables. Be sure that the "
+        "tables actually exist by calling sql_db_list_tables first! "
+        "Example Input: table1, table2, table3"
     )
-
+    
 
 def test_invocation_returns_ddl_followed_by_sample_rows():
     db = _make_db_with_tables(["Album"])

@@ -9,7 +9,7 @@ _SAMPLE_ROW_LIMIT = 3
 def make_get_schema(db: SqlDatabaseInterface) -> BaseTool:
     @tool("sql_db_schema")
     def sql_db_schema(table_names: str) -> str:
-        """Input is a comma-separated list of tables, output is the schema and sample rows for those tables. Be sure that the tables actually exist by calling sql_db_list_tables first!"""
+        """Input to this tool is a comma-separated list of tables, output is the schema and sample rows for those tables. Be sure that the tables actually exist by calling sql_db_list_tables first! Example Input: table1, table2, table3"""
         tables = [name.strip() for name in table_names.split(",") if name.strip()]
 
         valid_tables = set(db.get_table_names())
