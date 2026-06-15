@@ -1,0 +1,7 @@
+﻿langchain
+langgraph
+langchain-openai
+langchain-community
+sqlalchemy
+python-dotenv
+pytest
