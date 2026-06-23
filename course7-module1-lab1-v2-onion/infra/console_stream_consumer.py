@@ -1,5 +1,24 @@
+from dataclasses import is_dataclass, replace
 from typing import Any
 
+
+def _redact(value: Any) -> Any:
+    """Walk the value tree and redact any dataclass field literally named
+    `password`. Tactical V2 fix to close the visible-credential surface in
+    demo output. V3 replaces this with a domain-declared sensitive-field
+    policy consulted by a separate RedactingStreamConsumer concrete —
+    see the V2 lab note's deferred-hardening section.
+    """
+    if isinstance(value, dict):
+        return {k: _redact(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_redact(v) for v in value]
+    if is_dataclass(value) and not isinstance(value, type) and hasattr(value, "password"):
+        try:
+            return replace(value, password="***")
+        except TypeError:
+            return value
+    return value
 
 class ConsoleStreamConsumer:
     """stdout-backed stream consumer.
@@ -11,8 +30,9 @@ class ConsoleStreamConsumer:
 
     Format is deliberately terse: `[node_name] state_delta`. Production
     observability (structured logging, tracing) is a separate concrete
-    against the same interface.
+    against the same interface. Field-level redaction here is tactical;
+    proper sensitive-field policy lands in V3.
     """
 
     def on_update(self, node_name: str, state_delta: dict[str, Any]) -> None:
-        print(f"[{node_name}] {state_delta}")
+        print(f"[{node_name}] {_redact(state_delta)}")
