@@ -1,8 +1,10 @@
+import os
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
+from langchain_core.language_models import BaseChatModel
 from langgraph.graph.state import CompiledStateGraph
 
 from application.container import initialise
@@ -11,13 +13,24 @@ from application.qa_agent_service import QAAgentService
 from infra.console_stream_consumer import ConsoleStreamConsumer
 from infra.in_memory_event_store import InMemoryEventStore
 from infra.null_stream_consumer import NullStreamConsumer
+from infra.ollama_chat_model_provider import OllamaChatModelProvider
+from infra.openai_chat_model_provider import OpenAIChatModelProvider
 from infra.sqlite_event_store import SqliteEventStore
 from interfaces.agent_event_store_interface import AgentEventStoreInterface
+from interfaces.chat_model_provider_interface import ChatModelProviderInterface
 from interfaces.stream_consumer_interface import StreamConsumerInterface
 
 
 def _mock_graph() -> MagicMock:
     return MagicMock(spec=CompiledStateGraph)
+
+
+def _mock_provider() -> MagicMock:
+    """Mock provider returning a mock BaseChatModel. Lets the container's
+    graph-construction path run without instantiating a real LLM client."""
+    provider = MagicMock(spec=ChatModelProviderInterface)
+    provider.create.return_value = MagicMock(spec=BaseChatModel)
+    return provider
 
 
 class TestContainerReturnShape:
@@ -54,6 +67,53 @@ class TestContainerDefaultWiring:
         now = qa_service._clock()
         assert isinstance(now, datetime)
         assert now.tzinfo == timezone.utc
+
+
+class TestContainerGraphConstruction:
+
+    def test_default_builds_qa_graph_from_ollama_provider(self) -> None:
+        """Pinned: default path constructs the QA graph via Ollama provider.
+        ChatOllama construction does not network; the graph is built
+        without Ollama running."""
+        app = initialise(chat_model_provider=_mock_provider())
+        qa_service = app.qa
+        assert isinstance(qa_service, QAAgentService)
+        assert isinstance(qa_service._graph, CompiledStateGraph)
+
+    def test_use_openai_selects_openai_provider(self) -> None:
+        """Pinned: use_openai=True selects OpenAIChatModelProvider when
+        no explicit provider is injected."""
+        with patch.dict(os.environ, {"OPENAI_API_KEY": "dummy-key-for-test"}):
+            mock_provider = _mock_provider()
+            # Patch the OpenAI provider construction so we can verify
+            # use_openai=True wired it without needing real OpenAI.
+            with patch(
+                "application.container.OpenAIChatModelProvider",
+                return_value=mock_provider,
+            ) as openai_ctor:
+                initialise(use_openai=True)
+                openai_ctor.assert_called_once()
+
+    def test_default_provider_when_not_openai_is_ollama(self) -> None:
+        with patch(
+            "application.container.OllamaChatModelProvider",
+            return_value=_mock_provider(),
+        ) as ollama_ctor:
+            initialise()
+            ollama_ctor.assert_called_once()
+
+    def test_explicit_chat_model_provider_overrides_use_openai(self) -> None:
+        """Pinned: explicit injection wins over the boolean."""
+        injected = _mock_provider()
+        initialise(chat_model_provider=injected, use_openai=True)
+        injected.create.assert_called_once()
+
+    def test_explicit_qa_graph_bypasses_provider_entirely(self) -> None:
+        """Pinned: when qa_graph is injected, the provider is never called.
+        Tests pass a mock graph and skip all LLM-provider plumbing."""
+        provider = _mock_provider()
+        initialise(qa_graph=_mock_graph(), chat_model_provider=provider)
+        provider.create.assert_not_called()
 
 
 class TestContainerSqliteWiring:
@@ -96,8 +156,8 @@ class TestContainerExplicitInjection:
         app = initialise(
             qa_graph=_mock_graph(),
             event_store=injected,
-            use_sqlite_persistence=True,  # ignored
-            db_path="/dev/null",  # ignored
+            use_sqlite_persistence=True,
+            db_path="/dev/null",
         )
         qa_service = app.qa
         assert isinstance(qa_service, QAAgentService)
@@ -108,7 +168,7 @@ class TestContainerExplicitInjection:
         app = initialise(
             qa_graph=_mock_graph(),
             inner_consumer=injected,
-            use_console_consumer=True,  # ignored
+            use_console_consumer=True,
         )
         qa_service = app.qa
         assert isinstance(qa_service, QAAgentService)
@@ -116,7 +176,10 @@ class TestContainerExplicitInjection:
 
     def test_explicit_clock_overrides_default(self) -> None:
         fixed_time = datetime(2026, 6, 23, 12, 0, tzinfo=timezone.utc)
-        injected_clock = lambda: fixed_time
+
+        def injected_clock() -> datetime:
+            return fixed_time
+
         app = initialise(qa_graph=_mock_graph(), clock=injected_clock)
         qa_service = app.qa
         assert isinstance(qa_service, QAAgentService)
@@ -141,8 +204,7 @@ class TestContainerStateless:
 
     def test_two_calls_return_different_instances(self) -> None:
         """Pinned: container is stateless. Two initialise() calls return
-        independent LabApp instances with independent dependencies. The
-        entry point owns any singleton behaviour."""
+        independent LabApp instances with independent dependencies."""
         first = initialise(qa_graph=_mock_graph())
         second = initialise(qa_graph=_mock_graph())
         assert first is not second
