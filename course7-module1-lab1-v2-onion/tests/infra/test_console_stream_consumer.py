@@ -1,7 +1,5 @@
 from infra.console_stream_consumer import ConsoleStreamConsumer
 from domain.auth_credentials import AuthCredentials
-from infra.console_stream_consumer import ConsoleStreamConsumer
-
 
 def test_on_update_prints_node_name_and_state_delta(capsys) -> None:
     consumer = ConsoleStreamConsumer()

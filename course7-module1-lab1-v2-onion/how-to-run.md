@@ -35,7 +35,7 @@ update stream; they're the production observation surface, not log noise.
 ## Test
 
 ```powershell
-pytest                            # 115 tests, no API key required
+pytest                            # 116 tests, no API key required
 pyright                           # 0 errors, no cast, no # type: ignore
 python scripts/draw_graphs.py     # emits docs/graphs/{auth,qa,counter}.mmd
 ```
