@@ -19,8 +19,8 @@ the graph topology doesn't depend on, so the script runs offline.
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
+if __name__ == "__main__":
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from unittest.mock import MagicMock
 
 from langchain_core.language_models import BaseChatModel
