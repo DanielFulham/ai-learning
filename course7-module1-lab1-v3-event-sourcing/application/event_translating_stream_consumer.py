@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Callable
+from typing import Any, Callable, Sequence
 from uuid import UUID
 
 from domain.events.base import BaseAgentEvent
@@ -9,7 +9,7 @@ from interfaces.stream_consumer_interface import StreamConsumerInterface
 
 TranslatorFunction = Callable[
     [str, dict[str, Any], UUID, Callable[[], datetime]],
-    list[BaseAgentEvent],
+    Sequence[BaseAgentEvent],
 ]
 
 
