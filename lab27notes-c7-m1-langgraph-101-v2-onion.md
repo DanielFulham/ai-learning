@@ -1,6 +1,6 @@
 # Course 7 — Lab 27: LangGraph 101: Building Stateful AI Workflows (V2 — Onion-Architected)
 
-V1's three canonical workflows restructured into strict onion architecture. Two LLM provider concretes (Ollama, OpenAI). Graph builders are pure application orchestration. The container is the only file that crosses layers. The entry point is one `demo.py` with argparse dispatch. 115 tests pass. Pyright clean on defaults, no `cast`, no `# type: ignore`.
+V1's three canonical workflows restructured into strict onion architecture. Two LLM provider concretes (Ollama, OpenAI). Graph builders are pure application orchestration. The container is the only file that crosses layers. The entry point is one `demo.py` with argparse dispatch. 116 tests pass. Pyright clean on defaults, no `cast`, no `# type: ignore`.
 
 Built as part of the IBM RAG and Agentic AI Professional Certificate — Course 7, Module 1, second commit in the Lab 27 sequence. V1 (canonical-faithful) is in the sibling `course7-module1-lab1-v1-canonical/`; V3 (event-sourced layer) follows in its own session.
 
@@ -34,7 +34,7 @@ Three different topologies behind the same primitives, exactly as V1. The archit
 | Entry point           | `demo.py` with argparse subcommands (`auth`, `qa`, `counter`, `all`) |
 | Architecture          | Strict onion — domain ← interfaces ← infra/application ← entry point |
 | Type checker          | `pyright==1.1.402`, defaults, fully green, no `cast`, no `# type: ignore` |
-| Test surface          | 115 tests, no API key required, sub-3-second runtime               |
+| Test surface          | 116 tests, no API key required, sub-3-second runtime               |
 
 ---
 
@@ -67,7 +67,7 @@ python demo.py qa --provider openai
 Tests and pyright run without external dependencies:
 
 ```powershell
-pytest                            # 115 tests, no API key needed
+pytest                            # 116 tests, no API key needed
 pyright                           # 0 errors
 python scripts/draw_graphs.py     # emits Mermaid diagrams to docs/graphs/
 ```
