@@ -12,9 +12,15 @@ Flags:
                                     only the summaries print
 
 Usage:
-    python demo.py
-    python demo.py --provider openai
+    python demo.py                                # in-memory default, Ollama
+    python demo.py --persistence sqlite           # writes to ./events.db
     python demo.py --persistence sqlite --db-path runs.db --quiet
+    python demo.py --provider openai              # requires OPENAI_API_KEY in .env
+
+    # Flags compose freely:
+    python demo.py --provider openai --persistence sqlite
+    python demo.py --provider openai --persistence sqlite --db-path openai-runs.db --quiet
+
 """
 
 import argparse
