@@ -86,7 +86,7 @@ def test_success_node_stamps_success_message() -> None:
 
 
 def test_failure_node_clears_both_username_and_password_and_stamps_message() -> None:
-    """Clearing username matters — without it, a user who fat-fingered the
+    """Clearing username matters — without it, a user who accidentally entered the
     username on the first try has no opportunity to correct it. InputNode
     skips the username prompt whenever a username is present in state."""
     state: AuthState = {
