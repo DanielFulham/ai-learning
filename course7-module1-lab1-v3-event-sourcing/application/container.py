@@ -106,4 +106,5 @@ def initialise(
             inner_consumer=inner_consumer,
             clock=clock,
         ),
+        event_store=event_store,
     )

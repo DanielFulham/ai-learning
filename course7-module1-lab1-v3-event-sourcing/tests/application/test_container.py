@@ -199,6 +199,16 @@ class TestContainerSingleton:
         assert isinstance(qa_service, QAAgentService)
         assert qa_service._event_store is injected_store
 
+    def test_event_store_on_lab_app_matches_service_reference(self) -> None:
+        """Pinned: the same event_store reference is exposed on LabApp and
+        held by the service. The demo's RunSummaryProjection call reads
+        from the same store the service wrote to — that's the read-side
+        of the singleton contract."""
+        app = initialise(qa_graph=_mock_graph())
+        qa_service = app.qa
+        assert isinstance(qa_service, QAAgentService)
+        assert app.event_store is qa_service._event_store
+
 
 class TestContainerStateless:
 
