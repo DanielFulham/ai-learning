@@ -31,8 +31,7 @@ def _fixed_clock() -> Callable[[], datetime]:
 
 def _make_graph_yielding(*chunks: tuple[str, Any]) -> MagicMock:
     """Build a mocked CompiledStateGraph whose `.stream(...)` yields the
-    given (mode, chunk) tuples. Returns a fresh iterator each call so
-    the mock can be reused across runs."""
+    given (mode, chunk) tuples."""
     graph = MagicMock(spec=CompiledStateGraph)
     graph.stream.return_value = iter(chunks)
     return graph
@@ -100,11 +99,34 @@ class TestQAAgentServiceQuestionReceived:
         service.run("Q")
 
         events = _appended_events(store)
-        # First event is QuestionReceived, second is AnswerGenerated from
-        # the QANode update. Both share aggregate_id.
         assert isinstance(events[0], QuestionReceived)
         assert isinstance(events[1], AnswerGenerated)
         assert events[0].aggregate_id == events[1].aggregate_id
+
+
+class TestQAAgentServiceRunIdReturn:
+
+    def test_returned_run_id_matches_event_aggregate_id(self) -> None:
+        """Pinned: the run_id on the returned RunResult is the same one
+        used to tag every event for the run. Callers can use it for
+        replay-by-run and projection summarising."""
+        store = MagicMock(spec=AgentEventStoreInterface)
+        exchange = QAExchange(question="Q", answer="A")
+        graph = _make_graph_yielding(("values", {"exchange": exchange}))
+
+        service = _make_service(graph=graph, event_store=store)
+        result = service.run("Q")
+
+        events = _appended_events(store)
+        assert isinstance(events[0], QuestionReceived)
+        assert result.run_id == events[0].aggregate_id
+
+    def test_returned_run_id_is_a_uuid(self) -> None:
+        exchange = QAExchange(question="Q", answer="A")
+        graph = _make_graph_yielding(("values", {"exchange": exchange}))
+
+        result = _make_service(graph=graph).run("Q")
+        assert isinstance(result.run_id, UUID)
 
 
 class TestQAAgentServiceRunIdGeneration:
@@ -123,16 +145,10 @@ class TestQAAgentServiceRunIdGeneration:
         ]
 
         service = _make_service(graph=graph, event_store=store)
-        service.run("Q1")
-        service.run("Q2")
+        first = service.run("Q1")
+        second = service.run("Q2")
 
-        events = _appended_events(store)
-        # Two QuestionReceived events, one per run, with different run_ids
-        first_run_id = events[0].aggregate_id
-        second_run_id = events[1].aggregate_id
-        assert isinstance(first_run_id, UUID)
-        assert isinstance(second_run_id, UUID)
-        assert first_run_id != second_run_id
+        assert first.run_id != second.run_id
 
 
 class TestQAAgentServiceUpdateDispatch:
@@ -207,14 +223,14 @@ class TestQAAgentServiceUpdateDispatch:
 
 class TestQAAgentServiceReturn:
 
-    def test_returns_final_exchange_from_values_stream(self) -> None:
+    def test_returns_run_result_with_final_exchange(self) -> None:
         final = QAExchange(question="Q", context="C", answer="A")
         graph = _make_graph_yielding(("values", {"exchange": final}))
 
         service = _make_service(graph=graph)
         result = service.run("Q")
 
-        assert result == final
+        assert result.exchange == final
 
     def test_raises_when_no_values_chunk_yields_exchange(self) -> None:
         """Pinned: graph topology that completes without producing an
