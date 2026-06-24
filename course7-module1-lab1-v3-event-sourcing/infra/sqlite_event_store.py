@@ -89,9 +89,23 @@ class SqliteEventStore:
     event type not in the registry raises `ValueError` — the registry
     is the schema-evolution boundary, not silent failure.
 
+    ## Concurrency boundary (V3a scope)
+
     Each `append` and `events_for_run` opens and closes its own
     connection. Concurrency is the OS file lock; V3a's single-shot
     services do not need anything stronger.
+
+    Concurrent writes from multiple workers will fail under contention
+    with `sqlite3.OperationalError: database is locked`. The production
+    migration path is: enable WAL mode (`PRAGMA journal_mode=WAL`),
+    set `PRAGMA busy_timeout` to a value matching expected write
+    latency, and add a bounded retry loop on the locked-error class
+    around append calls. Connection pooling becomes worthwhile when
+    the per-call connect cost dominates query latency — that's a
+    Postgres-tier concern, not a SQLite one.
+
+    For V3a (single-shot lab demo), this is a documented scope
+    boundary, not a defect.
     """
 
     def __init__(

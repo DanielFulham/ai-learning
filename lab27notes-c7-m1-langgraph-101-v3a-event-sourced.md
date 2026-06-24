@@ -230,13 +230,51 @@ V3b's substrate sits next to V3a's, not on top of it. The Auth workflow comes ov
 
 ## V3a → V3b Findings (Pinned for the Next Commit)
 
-1. **Per-service translator is the boundary that earned its keep.** V3a's QA translator is small (one function, four branches, ~60 lines). V3b's Auth translator will be slightly bigger (three nodes plus loop semantics, sensitive-field handling). The duplication-vs-abstraction call tipped in favour of duplication; that holds. Auth's translator gets its own file, its own union, its own tests.
-2. **Sensitive-field policy is a translator concern, not a separate concrete.** V3b applies the policy inline in `translate_auth_update` — password gets discarded at write time. No `RedactingStreamConsumer` shipping in V3a; if a future surface needs separate redaction policy (multi-tenant differing rules), it lands as a decorator then.
-3. **`prompt_secret` lands with the translator change, not separately.** Storage-side and input-side gaps close together. Coherent V3b narrative; small enough not to justify two commits.
-4. **`SqliteCheckpointer` shares the SQLite database with `SqliteEventStore`.** One DB file, two tables (`events` and `checkpoints`). Container picks the SQLite path once via `use_sqlite_persistence=True` + `db_path`; both concretes use the same file. Demo for resume-from-checkpoint: kill the auth REPL mid-loop, restart with the same `run_id`, resume from saved state.
-5. **`LabApp` field additions are additive only.** V3a → V3b: `LabApp(qa, event_store)` → `LabApp(qa, auth, event_store)`. No field removals. V3c then adds `counter`.
-6. **`CounterTerminated` should fire explicitly in V3c, not derive from `TickAdded.n == 13`.** The principle: when choosing between "event fired" and "absence of subsequent event signals termination", firing is the more useful shape for projections. The cost is one event per run; the benefit is `ThreadHistoryProjection`'s "longest counter cycle" query becomes a filter, not a groupby with threshold reasoning. Decided in V3a planning; binding for V3c.
-7. **The hallucination demo stays preserved across all commits.** V3a recorded it as data; V3b and V3c don't change the hallucination behaviour. V3c's `ThreadHistoryProjection` is the surface that quantifies it — "show me all AnswerGenerated events where the retrieved context didn't match the question's subject" — but the LLM-side detection is a separate eval problem and out of scope until a future lab.
+Surfaced during V3a build, V3a review (Copilot architectural pass), and pinned here as the binding document for V3b's commit sequence.
+
+### Architectural fixes V3b must land
+
+1. **Container event-type registry must accept the union of all service event types, not QA-only.** V3a's container declares `_QA_EVENT_TYPES` and passes only that list to `SqliteEventStore`. When V3b's Auth service appends `LoginAttempted` to the same store, the append succeeds (no registry check on write), but a subsequent read of an Auth event raises `ValueError("Unknown event type")` because the registry doesn't know about it. Classic write-accept/read-fail failure mode. V3b's container update: `_ALL_EVENT_TYPES = _QA_EVENT_TYPES + _AUTH_EVENT_TYPES`, passed to the store constructor. V3c extends with `_COUNTER_EVENT_TYPES`.
+
+2. **Node-name constants belong to the graph builder, imported by the translator.** Today `"ContextNode"` and `"QANode"` are duplicated as string literals in `graph_builders.py` and `qa_translator.py`. Renaming a node in the builder and forgetting the translator's constants causes a runtime `ValueError("Unknown QA node")` — fail-fast, but hidden coupling. V3b: each graph builder module exports its node-name constants; the corresponding translator imports them. Single source of truth, type-checker enforces the match.
+
+3. **Sensitive-field policy lands as an explicit codec layer at the translator boundary.** V3b's Auth translator drops `password` from `LoginAttempted.payload`. The natural shape is to promote payload encoding into an explicit codec helper called inside the translator — not a new concrete, just a named function (`_encode_auth_login_attempted_payload`) that makes the field-discard decision visible. Same pattern generalises to any future translator with field-policy concerns. Don't refactor V3a's QA translator pre-V3b; the codec shape lands with V3b's Auth translator where it earns its keep.
+
+### V3b core deliverables
+
+4. **Per-service translator pattern duplicated, not abstracted.** V3a's QA translator is two dispatch branches; V3b's Auth translator will be three; V3c's Counter will be two. Across three services that's seven branches total — not enough variance to justify a dispatch table or a `TranslationSpec` abstraction. Duplication is the right shape until pattern volume justifies it.
+
+5. **Sensitive-field policy is a translator concern, not a separate concrete.** V3b applies the policy inline in `translate_auth_update` via the codec helper above — password gets discarded at write time. No `RedactingStreamConsumer` shipping; if a future surface needs runtime-pluggable redaction policy (multi-tenant differing rules), it lands as a decorator then.
+
+6. **`prompt_secret` lands with the Auth translator commit, not separately.** Storage-side and input-side credential gaps close together. Coherent V3b narrative.
+
+7. **`SqliteCheckpointer` shares the SQLite database with `SqliteEventStore`.** One DB file, two tables (`events` and `checkpoints`). Container picks the SQLite path once via `use_sqlite_persistence=True` + `db_path`; both concretes use the same file. Demo for resume-from-checkpoint: kill the auth REPL mid-loop, restart with the same `run_id`, resume from saved state.
+
+8. **`LabApp` field additions are additive only.** V3a → V3b: `LabApp(qa, event_store)` → `LabApp(qa, auth, event_store)`. V3c then adds `counter`.
+
+### Deferred (V3c or beyond)
+
+9. **Read/write interface split deferred to V3c.** V3a exposes the full `AgentEventStoreInterface` (append + events_for_run) on `LabApp.event_store`. Any caller holding the app can append arbitrary events — authority leak by CQRS standards. The disciplined fix is `EventStoreReader` (read-only) on `LabApp`, `EventStoreWriter` injected only into services. Defer to V3c, where `ThreadHistoryProjection` is the read-only consumer that justifies the split.
+
+10. **`CounterTerminated` fires explicitly in V3c, not derives from `TickAdded.n == 13`.** Firing wins over absence-detection: filter beats groupby with threshold reasoning for `ThreadHistoryProjection`'s "longest counter cycle" query.
+
+11. **Serializer expansion lands with V3c's payload diversity.** V3a's `_to_json_compatible` / `_from_json_compatible` handle frozen dataclasses, UUID, datetime, and `Optional[T]` for nested dataclasses. Untested shapes (`list[UUID]`, `dict[str, Dataclass]`, non-optional unions) are V3c+ concern. Write a regression test in V3c pinning the supported shape set explicitly — the test IS the contract.
+
+### Out of scope across V3 series
+
+12. **Multi-tenancy.** `BaseAgentEvent` has no `tenant_id`. The event store interface has no tenant-scoped read. V3 series is single-tenant by design; multi-tenant isolation is a hard boundary that lands when a real consumer demands it. Adding `tenant_id` retroactively is a schema-version bump (`schema_version=2`) with a backward-compat read path for V1 events.
+
+13. **Schema migration dispatch.** V3a stores `schema_version` per event but has no migration logic — every event read assumes current schema. Mixed-version reads land when a real version bump happens (likely `correlation_id` in Module 3's multi-agent work). The pattern: per-event-type migration function called inside `_row_to_event` after registry lookup, before reconstruction.
+
+14. **SQLite concurrency tuning.** WAL mode, busy timeout, retry-on-locked are the production migration path documented in `SqliteEventStore`'s docstring. Not a V3 series concern; lands when a real concurrent service consumes the substrate.
+
+### Testing pattern that V3b unlocks
+
+15. **Event log composition assertions.** V3a has unit tests over each unit; V3b adds composition tests that assert against the full event log of a run. Pattern: "after `demo.py all`, the store contains exactly one `LoginSucceeded` followed by three `QuestionReceived`/`AnswerGenerated` pairs." The V2 lab note's two composition bugs (wrong-username-no-recovery, scripted-response-size-mismatch) would have been caught by event log assertions; V3b is the first commit where that test surface exists.
+
+### Hallucination behaviour
+
+16. **The hallucination demo stays preserved across all commits.** V3a recorded it as data; V3b and V3c don't change the hallucination behaviour. V3c's `ThreadHistoryProjection` is the surface that quantifies it — "show me all `AnswerGenerated` events where the retrieved context didn't match the question's subject" — but the LLM-side detection is a separate eval problem and out of scope until a future lab.
 
 ---
 
