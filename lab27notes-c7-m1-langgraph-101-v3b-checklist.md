@@ -60,17 +60,19 @@ Source of truth for finding text: lab27notes-c7-m1-langgraph-101-v3a-event-sourc
 
 - [ ] F06 - prompt_secret ships in same commit sequence as Auth translator
   - Pinned finding: input-side and storage-side credential handling must land together.
-  - V3b action: add prompt_secret to InputProvider interface + concrete usage in Auth flow without splitting narrative.
+  - V3b action: add `prompt_secret` as a method on `InputProviderInterface`; `ConsoleInputProvider` uses `getpass.getpass`; `ScriptedInputProvider` adds matching behavior for tests.
   - Evidence of done:
-    - Auth path uses secret prompt API for password entry.
-    - Tests cover no-echo contract at interface/concrete boundary (where testable).
+    - `InputProviderInterface` defines `prompt_secret`.
+    - `ConsoleInputProvider.prompt_secret` uses `getpass.getpass`.
+    - `ScriptedInputProvider` implements `prompt_secret` for test parity.
+    - Auth path uses `prompt_secret` for password entry.
 
 - [ ] F07 - SQLite checkpointer shares DB file with SQLite event store
   - Pinned finding: one DB, two tables (events + checkpoints).
   - V3b action: wire SqliteCheckpointer to same db_path selected by container persistence flags.
   - Evidence of done:
     - Container uses one db_path for both SQLite concretes.
-    - Checkpoint resume scenario covered by tests or scripted demo path.
+    - Test pins checkpoint resume path: save checkpoint -> reconstruct service/container from same db_path -> load returns saved checkpoint.
 
 - [ ] F08 - LabApp grows additively: add auth, keep qa and event_store
   - Pinned finding: additive app surface from V3a to V3b.
@@ -140,18 +142,26 @@ Source of truth for finding text: lab27notes-c7-m1-langgraph-101-v3a-event-sourc
     - Existing QA behavior tests remain valid.
     - Notes explicitly state preservation.
 
+- [ ] F17 - Singleton event store contract enforced for two services
+  - Pinned finding: V3a tested singleton store sharing for one service; V3b's second service makes it load-bearing for V3c cross-service projections.
+  - V3b action: container test asserts QA service, Auth service, and LabApp all hold the same event_store instance.
+  - Evidence of done:
+    - Test: app.event_store is qa_service._event_store.
+    - Test: app.event_store is auth_service._event_store.
+    - Test: qa_service._event_store is auth_service._event_store.
+
 ---
 
 ## Recommended commit slicing for V3b
 
 - [ ] C1: Registry union fix (F01) + tests
 - [ ] C2: Shared node-name constants (F02) + translator imports + tests
-- [ ] C3: Auth translator + sensitive codec helper (F03, F04, F05) + tests
+- [ ] C3: Auth translator + sensitive codec helper (F03), bound by F04 (no premature abstraction) and F05 (no new redaction concrete) + tests
 - [ ] C4: prompt_secret and auth input flow (F06) + tests
 - [ ] C5: SqliteCheckpointer wiring and shared db_path (F07) + tests/demo note
 - [ ] C6: LabApp additive surface (F08) + container wiring + tests
 - [ ] C7: Composition assertions for integrated event log (F15)
-- [ ] C8: V3b notes pass: deferred/out-of-scope/continuity pins (F09-F14, F16)
+- [ ] C8: V3b lab note draft with all deferred/out-of-scope/continuity items pinned (F09-F14, F16)
 
 ---
 
@@ -163,6 +173,7 @@ V3b is done only when all of the following are true:
 - [ ] Deferred and out-of-scope items are explicitly pinned in V3b notes.
 - [ ] pytest passes for the V3b tree.
 - [ ] pyright is clean on defaults.
+- [ ] Auth-event-on-shared-store round-trip verified: integration test appends a `LoginSucceeded` via Auth service, replays the shared event store, and reads it back as a typed `LoginSucceeded` instance.
 - [ ] No V3a behavior drift outside explicitly declared V3b scope.
 
 ---
