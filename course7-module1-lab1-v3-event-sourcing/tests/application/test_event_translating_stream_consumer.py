@@ -32,7 +32,7 @@ def _make_translator(
     return translator
 
 
-def _make_question_received_event(run_id: UUID) -> ContextRetrieved:
+def _make_context_retrieved_event(run_id: UUID) -> ContextRetrieved:
     return ContextRetrieved(
         event_id=uuid4(),
         aggregate_id=run_id,
@@ -113,7 +113,7 @@ class TestEventTranslatingStreamConsumerFanOut:
         """Pinned: every event returned by the translator is appended in
         order. Multi-event updates fan out cleanly."""
         run_id = uuid4()
-        event_a = _make_question_received_event(run_id)
+        event_a = _make_context_retrieved_event(run_id)
         event_b = _make_answer_generated_event(run_id)
         store = MagicMock(spec=AgentEventStoreInterface)
         translator = _make_translator(events_to_return=[event_a, event_b])
@@ -195,7 +195,7 @@ class TestEventTranslatingStreamConsumerFailurePropagation:
         """Pinned: event store failures also propagate. Persistence
         problems are not silently masked."""
         run_id = uuid4()
-        event = _make_question_received_event(run_id)
+        event = _make_context_retrieved_event(run_id)
         store = MagicMock(spec=AgentEventStoreInterface)
         store.append.side_effect = RuntimeError("store full")
         translator = _make_translator(events_to_return=[event])
