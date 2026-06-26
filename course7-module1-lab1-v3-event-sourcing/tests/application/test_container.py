@@ -219,3 +219,61 @@ class TestContainerStateless:
         second = initialise(qa_graph=_mock_graph())
         assert first is not second
         assert first.qa is not second.qa
+
+
+class TestContainerRegistryUnion:
+
+    def test_sqlite_event_store_receives_union_registry(
+        self, tmp_path: Path
+    ) -> None:
+        """Pinned: when use_sqlite_persistence=True, the SqliteEventStore is
+        constructed with a registry list containing all four QA event types
+        AND all three Auth event types. The composition (_ALL_EVENT_TYPES)
+        must be passed at the construction site — not the QA-only constant.
+
+        Patched at the import site in application.container to intercept
+        the constructor call and inspect the registry argument."""
+        from domain.events.auth_events import LoginAttempted, LoginFailed, LoginSucceeded
+        from domain.events.qa_events import (
+            AnswerGenerated,
+            ContextRetrieved,
+            ModelInvocationFailed,
+            QuestionReceived,
+        )
+
+        expected_registry = [
+            QuestionReceived,
+            ContextRetrieved,
+            AnswerGenerated,
+            ModelInvocationFailed,
+            LoginAttempted,
+            LoginSucceeded,
+            LoginFailed,
+        ]
+
+        with patch(
+            "application.container.SqliteEventStore",
+            spec=SqliteEventStore,
+        ) as mock_ctor:
+            mock_ctor.return_value = MagicMock(spec=SqliteEventStore)
+            initialise(
+                qa_graph=_mock_graph(),
+                use_sqlite_persistence=True,
+                db_path=tmp_path / "events.db",
+            )
+            mock_ctor.assert_called_once()
+            _, call_kwargs = mock_ctor.call_args
+            # SqliteEventStore(db_path, registry) — positional args
+            call_args, _ = mock_ctor.call_args
+            actual_registry = call_args[1]
+            assert actual_registry == expected_registry
+
+    def test_in_memory_path_does_not_call_sqlite_event_store(self) -> None:
+        """Pinned: the in-memory path must not construct SqliteEventStore.
+        This test must still pass after the registry union change."""
+        with patch(
+            "application.container.SqliteEventStore",
+            spec=SqliteEventStore,
+        ) as mock_ctor:
+            initialise(qa_graph=_mock_graph())
+            mock_ctor.assert_not_called()

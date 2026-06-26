@@ -7,6 +7,11 @@ from langgraph.graph.state import CompiledStateGraph
 from application.graph_builders import build_qa_graph
 from application.lab_app import LabApp
 from application.qa_agent_service import QAAgentService
+from domain.events.auth_events import (
+    LoginAttempted,
+    LoginFailed,
+    LoginSucceeded,
+)
 from domain.events.base import BaseAgentEvent
 from domain.events.qa_events import (
     AnswerGenerated,
@@ -31,6 +36,14 @@ _QA_EVENT_TYPES: list[type[BaseAgentEvent]] = [
     AnswerGenerated,
     ModelInvocationFailed,
 ]
+
+_AUTH_EVENT_TYPES: list[type[BaseAgentEvent]] = [
+    LoginAttempted,
+    LoginSucceeded,
+    LoginFailed,
+]
+
+_ALL_EVENT_TYPES: list[type[BaseAgentEvent]] = _QA_EVENT_TYPES + _AUTH_EVENT_TYPES
 
 
 def _production_clock() -> datetime:
@@ -77,7 +90,7 @@ def initialise(
                 raise ValueError(
                     "db_path is required when use_sqlite_persistence=True"
                 )
-            event_store = SqliteEventStore(db_path, _QA_EVENT_TYPES)
+            event_store = SqliteEventStore(db_path, _ALL_EVENT_TYPES)
         else:
             event_store = InMemoryEventStore()
 

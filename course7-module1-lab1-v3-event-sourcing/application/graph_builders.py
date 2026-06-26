@@ -6,6 +6,10 @@ from application.qa_nodes import context_provider_node, make_qa_node
 from domain.state_schemas import QAState
 
 
+QA_CONTEXT_NODE_NAME = "ContextNode"
+QA_QA_NODE_NAME = "QANode"
+
+
 def build_qa_graph(model: BaseChatModel) -> CompiledStateGraph:
     """Build the compiled QA graph.
 
@@ -22,11 +26,11 @@ def build_qa_graph(model: BaseChatModel) -> CompiledStateGraph:
     qa_node = make_qa_node(model)
 
     builder = StateGraph(QAState)
-    builder.add_node("ContextNode", context_provider_node)
-    builder.add_node("QANode", qa_node)
+    builder.add_node(QA_CONTEXT_NODE_NAME, context_provider_node)
+    builder.add_node(QA_QA_NODE_NAME, qa_node)
 
-    builder.add_edge(START, "ContextNode")
-    builder.add_edge("ContextNode", "QANode")
-    builder.add_edge("QANode", END)
+    builder.add_edge(START, QA_CONTEXT_NODE_NAME)
+    builder.add_edge(QA_CONTEXT_NODE_NAME, QA_QA_NODE_NAME)
+    builder.add_edge(QA_QA_NODE_NAME, END)
 
     return builder.compile()
