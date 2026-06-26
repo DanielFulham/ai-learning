@@ -1,5 +1,6 @@
 from typing import TypedDict
 
+from domain.auth_credentials import AuthCredentials
 from domain.qa_exchange import QAExchange
 
 
@@ -17,3 +18,16 @@ class QAState(TypedDict, total=False):
     """
 
     exchange: QAExchange
+
+
+class AuthState(TypedDict, total=False):
+    """LangGraph state schema for the Auth workflow.
+
+    Same single-key shape as QAState — one domain object per state.
+    Nodes use replace() to update the AuthCredentials and return
+    {"credentials": new_credentials}.
+
+    CounterState lands when V3c lifts the Counter workflow.
+    """
+
+    credentials: AuthCredentials
