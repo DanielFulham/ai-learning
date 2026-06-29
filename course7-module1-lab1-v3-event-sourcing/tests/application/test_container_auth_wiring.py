@@ -5,7 +5,7 @@ from langgraph.graph.state import CompiledStateGraph
 from application.auth_agent_service import AuthAgentService
 from application.container import initialise
 from application.qa_agent_service import QAAgentService
-from domain.events.auth_events import LoginAttempted, LoginSucceeded
+from domain.events.auth_events import LoginAttempted, LoginFailed, LoginSucceeded
 from interfaces.input_provider_interface import InputProviderInterface
 
 from _helpers.scripted_input_provider import ScriptedInputProvider
@@ -112,3 +112,39 @@ class TestContainerAuthFlowEndToEnd:
         assert isinstance(events[0], LoginAttempted)
         assert isinstance(events[1], LoginSucceeded)
         assert events[0].username == "test_user"
+
+    def test_auth_failure_then_retry_success_appends_expected_events(self) -> None:
+        """Captures the loop-on-failure topology as architectural truth. The
+        auth graph's failure branch loops FailureNode -> InputNode (no edge
+        to END from failure); SuccessNode -> END is the only terminus. So the
+        minimal terminating run that includes a failure is attempt -> fail ->
+        loop -> attempt -> succeed, which the translator renders as the
+        four-event sequence below. failure_node clears username AND password,
+        so the scripted provider must supply both fields for both attempts —
+        four strings, one shared queue. The username field on each
+        LoginAttempted pins that the attempt reflects its own scripted input,
+        not a cached value from the prior attempt."""
+        provider = ScriptedInputProvider(
+            ["wrong_user", "wrong_password", "test_user", "secure_password"]
+        )
+        app = initialise(
+            qa_graph=_mock_graph(),
+            input_provider=provider,
+            use_console_consumer=False,
+        )
+
+        result = app.auth.run()
+
+        events = app.event_store.events_for_run(result.run_id)
+        assert [type(e).__name__ for e in events] == [
+            "LoginAttempted",
+            "LoginFailed",
+            "LoginAttempted",
+            "LoginSucceeded",
+        ]
+        assert isinstance(events[0], LoginAttempted)
+        assert isinstance(events[1], LoginFailed)
+        assert isinstance(events[2], LoginAttempted)
+        assert isinstance(events[3], LoginSucceeded)
+        assert events[0].username == "wrong_user"
+        assert events[2].username == "test_user"
