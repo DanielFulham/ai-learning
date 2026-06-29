@@ -41,7 +41,7 @@ def make_input_node(input_provider: InputProviderInterface):
         else:
             username = current.username
 
-        password = input_provider.prompt("Enter your password: ")
+        password = input_provider.prompt_secret("Enter your password: ")
 
         return {"credentials": replace(current, username=username, password=password)}
 

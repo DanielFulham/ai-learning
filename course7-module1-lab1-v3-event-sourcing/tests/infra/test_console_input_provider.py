@@ -36,3 +36,32 @@ class TestConsoleInputProviderPrompt:
             result = provider.prompt("Enter your password: ")
 
         assert result == "secure_password"
+
+
+class TestConsoleInputProviderPromptSecret:
+
+    def test_prompt_secret_calls_getpass_with_message(self) -> None:
+        """Pinned: prompt_secret() delegates to getpass.getpass with the
+        message as the prompt string and returns its result. Patched at the
+        import site (infra.console_input_provider.getpass), not the source."""
+        provider = ConsoleInputProvider()
+        with patch(
+            "infra.console_input_provider.getpass.getpass",
+            return_value="secure_password",
+        ) as mock_getpass:
+            result = provider.prompt_secret("Enter your password: ")
+
+        mock_getpass.assert_called_once_with("Enter your password: ")
+        assert result == "secure_password"
+
+    def test_prompt_secret_returns_empty_string_without_validation(self) -> None:
+        """Pinned: getpass.getpass returns '' when the user hits enter
+        without typing. The concrete does not validate — it returns the
+        empty string verbatim. Validation is the caller's concern."""
+        provider = ConsoleInputProvider()
+        with patch(
+            "infra.console_input_provider.getpass.getpass", return_value=""
+        ):
+            result = provider.prompt_secret("Enter your password: ")
+
+        assert result == ""

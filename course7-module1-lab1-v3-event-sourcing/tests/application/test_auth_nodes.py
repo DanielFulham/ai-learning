@@ -35,46 +35,68 @@ def _creds_from(result: AuthState) -> AuthCredentials:
     assert creds is not None, "node result must contain credentials"
     return creds
 
-def _mock_provider(responses: list[str]) -> MagicMock:
-    """Mock InputProviderInterface returning scripted responses."""
+def _mock_provider(
+    username_responses: list[str], password_responses: list[str]
+) -> MagicMock:
+    """Mock InputProviderInterface. prompt() returns username responses,
+    prompt_secret() returns password responses. Separate queues because the
+    test asserts which method handles which field — input_node uses prompt
+    for the username and prompt_secret (non-echoing) for the password."""
     provider = MagicMock(spec=InputProviderInterface)
-    provider.prompt.side_effect = responses
+    provider.prompt.side_effect = username_responses
+    provider.prompt_secret.side_effect = password_responses
     return provider
 
 
 class TestMakeInputNode:
 
     def test_prompts_for_username_and_password_when_username_none(self) -> None:
-        """Pinned: when credentials.username is None, input_node calls
-        prompt twice — once for username, once for password."""
-        provider = _mock_provider(["alice", "secret"])
+        """Pinned: when credentials.username is None, input_node prompts
+        once for the username via prompt and once for the password via
+        prompt_secret (the non-echoing path)."""
+        provider = _mock_provider(["alice"], ["secret"])
         input_node = make_input_node(provider)
 
         result = input_node(_state_with(AuthCredentials()))
 
-        assert provider.prompt.call_count == 2
-        assert provider.prompt.call_args_list == [
-            call("What is your username? "),
-            call("Enter your password: "),
-        ]
+        assert provider.prompt.call_count == 1
+        assert provider.prompt.call_args_list == [call("What is your username? ")]
+        assert provider.prompt_secret.call_count == 1
+        assert provider.prompt_secret.call_args_list == [call("Enter your password: ")]
         assert result == {"credentials": AuthCredentials(username="alice", password="secret")}
+
+    def test_prompts_username_before_password(self) -> None:
+        """Pinned: username is prompted before the password. The ordering
+        is otherwise implicit — mock_calls on the shared provider records
+        prompt before prompt_secret."""
+        provider = _mock_provider(["alice"], ["secret"])
+        input_node = make_input_node(provider)
+
+        input_node(_state_with(AuthCredentials()))
+
+        assert provider.mock_calls == [
+            call.prompt("What is your username? "),
+            call.prompt_secret("Enter your password: "),
+        ]
 
     def test_reuses_existing_username_if_set(self) -> None:
         """Pinned: if credentials.username is already non-empty, the
-        username prompt is skipped. Only password is prompted."""
-        provider = _mock_provider(["secret"])
+        username prompt is skipped. Only the password is prompted, via
+        prompt_secret."""
+        provider = _mock_provider([], ["secret"])
         input_node = make_input_node(provider)
 
         result = input_node(_state_with(AuthCredentials(username="alice")))
 
-        assert provider.prompt.call_count == 1
-        assert provider.prompt.call_args_list == [call("Enter your password: ")]
+        assert provider.prompt.call_count == 0
+        assert provider.prompt_secret.call_count == 1
+        assert provider.prompt_secret.call_args_list == [call("Enter your password: ")]
         assert result == {"credentials": AuthCredentials(username="alice", password="secret")}
 
     def test_returns_explicit_delta_with_replace(self) -> None:
         """Pinned: V3b observability-consistency lift — replace() preserves
         other carrier fields, returns explicit delta."""
-        provider = _mock_provider(["bob", "pw"])
+        provider = _mock_provider(["bob"], ["pw"])
         input_node = make_input_node(provider)
         initial = AuthCredentials(is_authenticated=False, message="prior message")
 
@@ -88,20 +110,22 @@ class TestMakeInputNode:
     def test_raises_when_credentials_missing_from_state(self) -> None:
         """Pinned: all nodes raise ValueError if credentials absent.
         The auth service pre-populates with AuthCredentials() before streaming."""
-        provider = _mock_provider([])
+        provider = _mock_provider([], [])
         input_node = make_input_node(provider)
 
         with pytest.raises(ValueError, match="input_node requires credentials in state"):
             input_node({})
 
     def test_empty_string_username_triggers_prompt(self) -> None:
-        """Pinned: empty string is treated as absent — prompt fires."""
-        provider = _mock_provider(["alice", "secret"])
+        """Pinned: empty string is treated as absent — the username prompt
+        fires (via prompt), and the password is read via prompt_secret."""
+        provider = _mock_provider(["alice"], ["secret"])
         input_node = make_input_node(provider)
 
         input_node(_state_with(AuthCredentials(username="")))
 
-        assert provider.prompt.call_count == 2
+        assert provider.prompt.call_count == 1
+        assert provider.prompt_secret.call_count == 1
 
 
 class TestValidateCredentialsNode:
