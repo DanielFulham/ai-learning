@@ -5,6 +5,9 @@ from uuid import uuid4
 import pytest
 
 import demo
+from application.interfaces.auth_agent_service_interface import (
+    AuthAgentServiceInterface,
+)
 from application.lab_app import LabApp
 from domain.qa_exchange import QAExchange
 from domain.run_result import RunResult
@@ -35,6 +38,7 @@ def _make_mock_app() -> tuple[LabApp, MagicMock]:
             qa=qa_service,
             event_store=event_store,
             checkpointer=MagicMock(spec=AgentCheckpointerInterface),
+            auth=MagicMock(spec=AuthAgentServiceInterface),
         ),
         qa_service,
     )

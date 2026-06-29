@@ -1,5 +1,8 @@
 from dataclasses import dataclass
 
+from application.interfaces.auth_agent_service_interface import (
+    AuthAgentServiceInterface,
+)
 from application.interfaces.qa_agent_service_interface import (
     QAAgentServiceInterface,
 )
@@ -28,3 +31,4 @@ class LabApp:
     qa: QAAgentServiceInterface
     event_store: AgentEventStoreInterface
     checkpointer: AgentCheckpointerInterface
+    auth: AuthAgentServiceInterface

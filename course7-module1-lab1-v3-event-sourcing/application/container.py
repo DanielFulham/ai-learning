@@ -4,7 +4,8 @@ from typing import Callable
 
 from langgraph.graph.state import CompiledStateGraph
 
-from application.graph_builders import build_qa_graph
+from application.auth_agent_service import AuthAgentService
+from application.graph_builders import build_auth_graph, build_qa_graph
 from application.lab_app import LabApp
 from application.qa_agent_service import QAAgentService
 from domain.events.auth_events import (
@@ -19,6 +20,7 @@ from domain.events.qa_events import (
     ModelInvocationFailed,
     QuestionReceived,
 )
+from infra.console_input_provider import ConsoleInputProvider
 from infra.console_stream_consumer import ConsoleStreamConsumer
 from infra.in_memory_checkpointer import InMemoryCheckpointer
 from infra.in_memory_event_store import InMemoryEventStore
@@ -30,6 +32,7 @@ from infra.sqlite_event_store import SqliteEventStore
 from interfaces.agent_checkpointer_interface import AgentCheckpointerInterface
 from interfaces.agent_event_store_interface import AgentEventStoreInterface
 from interfaces.chat_model_provider_interface import ChatModelProviderInterface
+from interfaces.input_provider_interface import InputProviderInterface
 from interfaces.stream_consumer_interface import StreamConsumerInterface
 
 
@@ -55,7 +58,9 @@ def _production_clock() -> datetime:
 
 def initialise(
     chat_model_provider: ChatModelProviderInterface | None = None,
+    input_provider: InputProviderInterface | None = None,
     qa_graph: CompiledStateGraph | None = None,
+    auth_graph: CompiledStateGraph | None = None,
     event_store: AgentEventStoreInterface | None = None,
     checkpointer: AgentCheckpointerInterface | None = None,
     inner_consumer: StreamConsumerInterface | None = None,
@@ -126,6 +131,12 @@ def initialise(
         model = chat_model_provider.create()
         qa_graph = build_qa_graph(model)
 
+    if input_provider is None:
+        input_provider = ConsoleInputProvider()
+
+    if auth_graph is None:
+        auth_graph = build_auth_graph(input_provider)
+
     return LabApp(
         qa=QAAgentService(
             graph=qa_graph,
@@ -135,4 +146,10 @@ def initialise(
         ),
         event_store=event_store,
         checkpointer=checkpointer,
+        auth=AuthAgentService(
+            graph=auth_graph,
+            event_store=event_store,
+            inner_consumer=inner_consumer,
+            clock=clock,
+        ),
     )

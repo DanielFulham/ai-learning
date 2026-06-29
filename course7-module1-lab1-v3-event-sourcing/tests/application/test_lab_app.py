@@ -3,6 +3,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from application.interfaces.auth_agent_service_interface import (
+    AuthAgentServiceInterface,
+)
 from application.interfaces.qa_agent_service_interface import (
     QAAgentServiceInterface,
 )
@@ -16,6 +19,7 @@ def _make_app() -> LabApp:
         qa=MagicMock(spec=QAAgentServiceInterface),
         event_store=MagicMock(spec=AgentEventStoreInterface),
         checkpointer=MagicMock(spec=AgentCheckpointerInterface),
+        auth=MagicMock(spec=AuthAgentServiceInterface),
     )
 
 
@@ -28,6 +32,7 @@ class TestLabApp:
             qa=qa,
             event_store=store,
             checkpointer=MagicMock(spec=AgentCheckpointerInterface),
+            auth=MagicMock(spec=AuthAgentServiceInterface),
         )
         assert app.qa is qa
 
@@ -42,6 +47,7 @@ class TestLabApp:
             qa=qa,
             event_store=store,
             checkpointer=MagicMock(spec=AgentCheckpointerInterface),
+            auth=MagicMock(spec=AuthAgentServiceInterface),
         )
         assert app.event_store is store
 
