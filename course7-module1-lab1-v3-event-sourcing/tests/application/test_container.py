@@ -16,6 +16,7 @@ from infra.null_stream_consumer import NullStreamConsumer
 from infra.ollama_chat_model_provider import OllamaChatModelProvider
 from infra.openai_chat_model_provider import OpenAIChatModelProvider
 from infra.sqlite_event_store import SqliteEventStore
+from interfaces.agent_checkpointer_interface import AgentCheckpointerInterface
 from interfaces.agent_event_store_interface import AgentEventStoreInterface
 from interfaces.chat_model_provider_interface import ChatModelProviderInterface
 from interfaces.stream_consumer_interface import StreamConsumerInterface
@@ -149,19 +150,25 @@ class TestContainerNullConsumerWiring:
 
 class TestContainerExplicitInjection:
 
-    def test_explicit_event_store_overrides_sqlite_flag(self) -> None:
-        """Pinned: explicit injection wins. The booleans only select
-        defaults when no instance is passed."""
-        injected = MagicMock(spec=AgentEventStoreInterface)
+    def test_explicit_injections_override_sqlite_flag(self) -> None:
+        """Pinned: explicit injection wins for both persistence concretes.
+        The booleans only select defaults when no instance is passed.
+        Injecting event_store and checkpointer bypasses both SQLite
+        construction paths, so use_sqlite_persistence and db_path are
+        ignored — the /dev/null sentinel is never opened."""
+        injected_store = MagicMock(spec=AgentEventStoreInterface)
+        injected_checkpointer = MagicMock(spec=AgentCheckpointerInterface)
         app = initialise(
             qa_graph=_mock_graph(),
-            event_store=injected,
+            event_store=injected_store,
+            checkpointer=injected_checkpointer,
             use_sqlite_persistence=True,
             db_path="/dev/null",
         )
         qa_service = app.qa
         assert isinstance(qa_service, QAAgentService)
-        assert qa_service._event_store is injected
+        assert qa_service._event_store is injected_store
+        assert app.checkpointer is injected_checkpointer
 
     def test_explicit_inner_consumer_overrides_console_flag(self) -> None:
         injected = MagicMock(spec=StreamConsumerInterface)

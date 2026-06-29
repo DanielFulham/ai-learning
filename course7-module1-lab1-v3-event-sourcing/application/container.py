@@ -20,11 +20,14 @@ from domain.events.qa_events import (
     QuestionReceived,
 )
 from infra.console_stream_consumer import ConsoleStreamConsumer
+from infra.in_memory_checkpointer import InMemoryCheckpointer
 from infra.in_memory_event_store import InMemoryEventStore
 from infra.null_stream_consumer import NullStreamConsumer
 from infra.ollama_chat_model_provider import OllamaChatModelProvider
 from infra.openai_chat_model_provider import OpenAIChatModelProvider
+from infra.sqlite_checkpointer import SqliteCheckpointer
 from infra.sqlite_event_store import SqliteEventStore
+from interfaces.agent_checkpointer_interface import AgentCheckpointerInterface
 from interfaces.agent_event_store_interface import AgentEventStoreInterface
 from interfaces.chat_model_provider_interface import ChatModelProviderInterface
 from interfaces.stream_consumer_interface import StreamConsumerInterface
@@ -54,6 +57,7 @@ def initialise(
     chat_model_provider: ChatModelProviderInterface | None = None,
     qa_graph: CompiledStateGraph | None = None,
     event_store: AgentEventStoreInterface | None = None,
+    checkpointer: AgentCheckpointerInterface | None = None,
     inner_consumer: StreamConsumerInterface | None = None,
     clock: Callable[[], datetime] | None = None,
     use_openai: bool = False,
@@ -94,6 +98,16 @@ def initialise(
         else:
             event_store = InMemoryEventStore()
 
+    if checkpointer is None:
+        if use_sqlite_persistence:
+            if db_path is None:
+                raise ValueError(
+                    "db_path is required when use_sqlite_persistence=True"
+                )
+            checkpointer = SqliteCheckpointer(db_path)
+        else:
+            checkpointer = InMemoryCheckpointer()
+
     if inner_consumer is None:
         if use_console_consumer:
             inner_consumer = ConsoleStreamConsumer()
@@ -120,4 +134,5 @@ def initialise(
             clock=clock,
         ),
         event_store=event_store,
+        checkpointer=checkpointer,
     )
