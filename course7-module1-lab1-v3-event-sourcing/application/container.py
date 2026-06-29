@@ -131,10 +131,9 @@ def initialise(
         model = chat_model_provider.create()
         qa_graph = build_qa_graph(model)
 
-    if input_provider is None:
-        input_provider = ConsoleInputProvider()
-
     if auth_graph is None:
+        if input_provider is None:
+            input_provider = ConsoleInputProvider()
         auth_graph = build_auth_graph(input_provider)
 
     return LabApp(

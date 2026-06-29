@@ -21,6 +21,11 @@ class AgentCheckpointerInterface(Protocol):
     - `InMemoryCheckpointer` — dict-backed, test default
     - `SqliteCheckpointer` — same SQLite database as the event store
       when persistence is enabled
+
+    Implementations that serialise `state` to a string format (e.g.
+    `SqliteCheckpointer` using `json.dumps`) require `state` to contain
+    only JSON-serialisable values. Non-serialisable values raise the
+    underlying serialisation library's error at write time.
     """
 
     def save(self, checkpoint: AgentCheckpoint) -> None: ...

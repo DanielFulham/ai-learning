@@ -67,7 +67,8 @@ class TestLoginAttempted:
         Omitting them must raise TypeError — the translator is the canonical
         source of identity fields, not the dataclass default mechanism."""
         with pytest.raises(TypeError):
-            LoginAttempted(username="test_user")  # type: ignore[call-arg]
+            kwargs: dict[str, Any] = {"username": "test_user"}
+            LoginAttempted(**kwargs)
 
     def test_password_absent_from_field_set(self) -> None:
         """Pinned: password is absent from LoginAttempted's field set by
@@ -100,7 +101,8 @@ class TestLoginSucceeded:
     def test_rejects_construction_without_no_default_fields(self) -> None:
         """Pinned: event_id, aggregate_id, and occurred_at carry no defaults."""
         with pytest.raises(TypeError):
-            LoginSucceeded(username="test_user", message="Welcome.")  # type: ignore[call-arg]
+            kwargs: dict[str, Any] = {"username": "test_user", "message": "Welcome."}
+            LoginSucceeded(**kwargs)
 
 
 class TestLoginFailed:
@@ -124,7 +126,8 @@ class TestLoginFailed:
     def test_rejects_construction_without_no_default_fields(self) -> None:
         """Pinned: event_id, aggregate_id, and occurred_at carry no defaults."""
         with pytest.raises(TypeError):
-            LoginFailed(username="test_user", message="Failed.")  # type: ignore[call-arg]
+            kwargs: dict[str, Any] = {"username": "test_user", "message": "Failed."}
+            LoginFailed(**kwargs)
 
 
 class TestAuthEventUnion:
