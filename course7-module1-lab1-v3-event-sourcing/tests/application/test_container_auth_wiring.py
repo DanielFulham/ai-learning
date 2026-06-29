@@ -77,7 +77,7 @@ class TestContainerF17Singleton:
     def test_event_store_shared_across_qa_and_auth(self) -> None:
         """F17 release gate: the one event_store instance is shared across
         LabApp, the QA service, and the Auth service. The Counter assertion
-        lands in V3c."""
+        is out of scope for the V3 series."""
         app = initialise(qa_graph=_mock_graph(), auth_graph=_mock_graph())
 
         assert isinstance(app.qa, QAAgentService)

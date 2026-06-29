@@ -11,8 +11,8 @@ For the architectural narrative and pinned decisions see
 (canonical-faithful) is in `course7-module1-lab1-v1-canonical/`; V2
 (onion-architected) is in `course7-module1-lab1-v2-onion/`.
 
-V3a ships QA only. Auth and Counter land in V3b and V3c alongside their
-per-service translators.
+V3b ships QA + Auth. The V3 series is terminal at V3b; Counter was scoped
+out.
 
 ## Setup
 

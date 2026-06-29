@@ -18,8 +18,8 @@ class AgentCheckpointerInterface(Protocol):
     the interface exposes.
 
     Concretes:
-    - `InMemoryCheckpointer` (V3a) — dict-backed, test default
-    - `SqliteCheckpointer` (V3b) — same SQLite database as the event store
+    - `InMemoryCheckpointer` — dict-backed, test default
+    - `SqliteCheckpointer` — same SQLite database as the event store
       when persistence is enabled
     """
 

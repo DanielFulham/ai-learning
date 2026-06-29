@@ -12,13 +12,12 @@ from interfaces.agent_event_store_interface import AgentEventStoreInterface
 
 @dataclass(frozen=True)
 class LabApp:
-    """V3a-shrunk lab application bundle.
+    """V3b lab application bundle.
 
-    Carries the QA service, the shared event store, and the checkpointer.
-    Exposing the event store on the bundle makes the singleton contract
-    visible — when V3b and V3c add Auth and Counter services, all three
-    services will hold this same reference, and the demo's read-side
-    (RunSummaryProjection, ThreadHistoryProjection in V3c) reads from
+    Carries the QA service, the Auth service, the shared event store, and
+    the checkpointer. Exposing the event store on the bundle makes the
+    singleton contract visible — the QA and Auth services hold this same
+    reference, and the demo's read-side (RunSummaryProjection) reads from
     the same store the services wrote to. The checkpointer is exposed on
     the bundle so the resume path is reachable from `initialise()`'s
     output — it shares the SQLite database file with the event store when

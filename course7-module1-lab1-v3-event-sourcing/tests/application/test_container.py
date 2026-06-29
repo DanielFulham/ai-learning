@@ -197,9 +197,9 @@ class TestContainerSingleton:
 
     def test_event_store_reference_is_held_by_qa_service(self) -> None:
         """Pinned: the container constructs one event_store and the QA
-        service holds the same reference. V3b and V3c's services will
-        receive the same instance — the singleton contract is what makes
-        ThreadHistoryProjection's cross-aggregate joins meaningful."""
+        service holds the same reference. The Auth service receives the
+        same instance too — the singleton contract is what makes a
+        cross-aggregate projection's joins meaningful."""
         injected_store = MagicMock(spec=AgentEventStoreInterface)
         app = initialise(qa_graph=_mock_graph(), event_store=injected_store)
         qa_service = app.qa

@@ -70,11 +70,11 @@ def initialise(
     db_path: str | Path | None = None,
     use_console_consumer: bool = True,
 ) -> LabApp:
-    """V3a composition root.
+    """V3b composition root.
 
-    Wires V3a's event-sourced substrate around V2's QA graph. Stateless
-    — each call constructs fresh instances; the entry point caches the
-    LabApp if it wants singleton behaviour.
+    Wires V3b's event-sourced substrate around the QA and Auth graphs.
+    Stateless — each call constructs fresh instances; the entry point
+    caches the LabApp if it wants singleton behaviour.
 
     Explicit injection wins over booleans. The booleans select between
     default concretes when no instance is passed:
@@ -88,10 +88,10 @@ def initialise(
     `qa_graph` is explicitly injected, the chat_model_provider is
     bypassed entirely — tests pass a mock graph and no provider.
 
-    The same event_store instance is held by the QA service. When V3b
-    and V3c land, Auth and Counter services receive the same reference
-    — the singleton contract for the event store is what makes
-    cross-aggregate projections meaningful in V3c.
+    The same event_store instance is held by the QA and Auth services.
+    The singleton contract — one store, multiple services appending to
+    it — is what makes cross-aggregate projections meaningful and is
+    pinned by the C7 composition assertions.
     """
     if event_store is None:
         if use_sqlite_persistence:

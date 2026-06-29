@@ -12,7 +12,7 @@ class SqliteCheckpointer:
 
     Single `checkpoints` table keyed by `run_id`:
     - `run_id` PK (the run the checkpoint belongs to, UUID stringified)
-    - `state` as a JSON blob of the LangGraph checkpoint state dict
+    - `state` as a JSON blob of the checkpoint state dict
 
     `save` is last-write-wins via INSERT OR REPLACE — a second save for the
     same run_id replaces the prior checkpoint, matching both LangGraph's

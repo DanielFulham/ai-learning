@@ -27,13 +27,13 @@ def build_qa_graph(model: BaseChatModel) -> CompiledStateGraph:
 
     Linear topology: START → ContextNode → QANode → END. ContextNode
     looks up canned context; QANode invokes the model with that context.
-    Both nodes return explicit deltas — the V3a observability consistency
+    Both nodes return explicit deltas — the observability consistency
     lift on ContextNode (always emit a ContextRetrieved event, including
-    on context=None misses) is the only behaviour change from V2.
+    on context=None misses) is the behaviour change from V2.
 
-    V3a includes only the QA graph builder. `build_auth_graph` and
-    `build_counter_graph` land in V3b and V3c alongside their workflows'
-    translators and projection joins.
+    `build_auth_graph` landed in V3b alongside the Auth workflow's
+    translator. The V3 series is terminal at V3b; the Counter workflow
+    was scoped out (see lab note Findings section).
     """
     qa_node = make_qa_node(model)
 

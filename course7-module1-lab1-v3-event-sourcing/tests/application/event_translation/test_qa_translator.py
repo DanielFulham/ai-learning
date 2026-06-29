@@ -67,7 +67,7 @@ class TestTranslateContextNodeUpdate:
     def test_context_none_emits_context_retrieved_with_none(self) -> None:
         """Pinned: the observability-consistency lift. A missed keyword
         match is recorded as ContextRetrieved(context=None), not as a
-        silent absence of the event. ThreadHistoryProjection in V3c joins
+        silent absence of the event. A cross-aggregate projection joins
         on this."""
         run_id = uuid4()
         exchange = _make_exchange(context=None)

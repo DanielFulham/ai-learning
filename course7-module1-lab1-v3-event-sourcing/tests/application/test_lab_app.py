@@ -38,8 +38,8 @@ class TestLabApp:
 
     def test_event_store_field_accessible(self) -> None:
         """Pinned: event_store is exposed on the bundle for read-side
-        consumers (demo's RunSummaryProjection call, V3c's
-        ThreadHistoryProjection). Same instance the services hold —
+        consumers (demo's RunSummaryProjection call). A cross-aggregate
+        projection reads the same instance the services hold —
         the singleton contract surfaces as a shared reference."""
         qa = MagicMock(spec=QAAgentServiceInterface)
         store = MagicMock(spec=AgentEventStoreInterface)
