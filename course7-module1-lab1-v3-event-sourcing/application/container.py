@@ -4,9 +4,15 @@ from typing import Callable
 
 from langgraph.graph.state import CompiledStateGraph
 
-from application.graph_builders import build_qa_graph
+from application.auth_agent_service import AuthAgentService
+from application.graph_builders import build_auth_graph, build_qa_graph
 from application.lab_app import LabApp
 from application.qa_agent_service import QAAgentService
+from domain.events.auth_events import (
+    LoginAttempted,
+    LoginFailed,
+    LoginSucceeded,
+)
 from domain.events.base import BaseAgentEvent
 from domain.events.qa_events import (
     AnswerGenerated,
@@ -14,14 +20,19 @@ from domain.events.qa_events import (
     ModelInvocationFailed,
     QuestionReceived,
 )
+from infra.console_input_provider import ConsoleInputProvider
 from infra.console_stream_consumer import ConsoleStreamConsumer
+from infra.in_memory_checkpointer import InMemoryCheckpointer
 from infra.in_memory_event_store import InMemoryEventStore
 from infra.null_stream_consumer import NullStreamConsumer
 from infra.ollama_chat_model_provider import OllamaChatModelProvider
 from infra.openai_chat_model_provider import OpenAIChatModelProvider
+from infra.sqlite_checkpointer import SqliteCheckpointer
 from infra.sqlite_event_store import SqliteEventStore
+from interfaces.agent_checkpointer_interface import AgentCheckpointerInterface
 from interfaces.agent_event_store_interface import AgentEventStoreInterface
 from interfaces.chat_model_provider_interface import ChatModelProviderInterface
+from interfaces.input_provider_interface import InputProviderInterface
 from interfaces.stream_consumer_interface import StreamConsumerInterface
 
 
@@ -32,6 +43,14 @@ _QA_EVENT_TYPES: list[type[BaseAgentEvent]] = [
     ModelInvocationFailed,
 ]
 
+_AUTH_EVENT_TYPES: list[type[BaseAgentEvent]] = [
+    LoginAttempted,
+    LoginSucceeded,
+    LoginFailed,
+]
+
+_ALL_EVENT_TYPES: list[type[BaseAgentEvent]] = _QA_EVENT_TYPES + _AUTH_EVENT_TYPES
+
 
 def _production_clock() -> datetime:
     return datetime.now(timezone.utc)
@@ -39,8 +58,11 @@ def _production_clock() -> datetime:
 
 def initialise(
     chat_model_provider: ChatModelProviderInterface | None = None,
+    input_provider: InputProviderInterface | None = None,
     qa_graph: CompiledStateGraph | None = None,
+    auth_graph: CompiledStateGraph | None = None,
     event_store: AgentEventStoreInterface | None = None,
+    checkpointer: AgentCheckpointerInterface | None = None,
     inner_consumer: StreamConsumerInterface | None = None,
     clock: Callable[[], datetime] | None = None,
     use_openai: bool = False,
@@ -48,11 +70,11 @@ def initialise(
     db_path: str | Path | None = None,
     use_console_consumer: bool = True,
 ) -> LabApp:
-    """V3a composition root.
+    """V3b composition root.
 
-    Wires V3a's event-sourced substrate around V2's QA graph. Stateless
-    — each call constructs fresh instances; the entry point caches the
-    LabApp if it wants singleton behaviour.
+    Wires V3b's event-sourced substrate around the QA and Auth graphs.
+    Stateless — each call constructs fresh instances; the entry point
+    caches the LabApp if it wants singleton behaviour.
 
     Explicit injection wins over booleans. The booleans select between
     default concretes when no instance is passed:
@@ -66,10 +88,10 @@ def initialise(
     `qa_graph` is explicitly injected, the chat_model_provider is
     bypassed entirely — tests pass a mock graph and no provider.
 
-    The same event_store instance is held by the QA service. When V3b
-    and V3c land, Auth and Counter services receive the same reference
-    — the singleton contract for the event store is what makes
-    cross-aggregate projections meaningful in V3c.
+    The same event_store instance is held by the QA and Auth services.
+    The singleton contract — one store, multiple services appending to
+    it — is what makes cross-aggregate projections meaningful and is
+    pinned by the C7 composition assertions.
     """
     if event_store is None:
         if use_sqlite_persistence:
@@ -77,9 +99,19 @@ def initialise(
                 raise ValueError(
                     "db_path is required when use_sqlite_persistence=True"
                 )
-            event_store = SqliteEventStore(db_path, _QA_EVENT_TYPES)
+            event_store = SqliteEventStore(db_path, _ALL_EVENT_TYPES)
         else:
             event_store = InMemoryEventStore()
+
+    if checkpointer is None:
+        if use_sqlite_persistence:
+            if db_path is None:
+                raise ValueError(
+                    "db_path is required when use_sqlite_persistence=True"
+                )
+            checkpointer = SqliteCheckpointer(db_path)
+        else:
+            checkpointer = InMemoryCheckpointer()
 
     if inner_consumer is None:
         if use_console_consumer:
@@ -99,6 +131,11 @@ def initialise(
         model = chat_model_provider.create()
         qa_graph = build_qa_graph(model)
 
+    if auth_graph is None:
+        if input_provider is None:
+            input_provider = ConsoleInputProvider()
+        auth_graph = build_auth_graph(input_provider)
+
     return LabApp(
         qa=QAAgentService(
             graph=qa_graph,
@@ -107,4 +144,11 @@ def initialise(
             clock=clock,
         ),
         event_store=event_store,
+        checkpointer=checkpointer,
+        auth=AuthAgentService(
+            graph=auth_graph,
+            event_store=event_store,
+            inner_consumer=inner_consumer,
+            clock=clock,
+        ),
     )

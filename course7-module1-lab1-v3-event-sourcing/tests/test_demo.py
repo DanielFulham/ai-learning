@@ -5,9 +5,13 @@ from uuid import uuid4
 import pytest
 
 import demo
+from application.interfaces.auth_agent_service_interface import (
+    AuthAgentServiceInterface,
+)
 from application.lab_app import LabApp
 from domain.qa_exchange import QAExchange
 from domain.run_result import RunResult
+from interfaces.agent_checkpointer_interface import AgentCheckpointerInterface
 from interfaces.agent_event_store_interface import AgentEventStoreInterface
 
 
@@ -29,7 +33,15 @@ def _make_mock_app() -> tuple[LabApp, MagicMock]:
     ]
     event_store = MagicMock(spec=AgentEventStoreInterface)
     event_store.events_for_run.return_value = []
-    return LabApp(qa=qa_service, event_store=event_store), qa_service
+    return (
+        LabApp(
+            qa=qa_service,
+            event_store=event_store,
+            checkpointer=MagicMock(spec=AgentCheckpointerInterface),
+            auth=MagicMock(spec=AuthAgentServiceInterface),
+        ),
+        qa_service,
+    )
 
 
 class TestParseArgs:

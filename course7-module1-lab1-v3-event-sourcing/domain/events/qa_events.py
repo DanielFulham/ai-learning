@@ -28,7 +28,7 @@ class ContextRetrieved(BaseAgentEvent):
 
     The V2 keyword-match hallucination (matching 'guided project' returns
     LangGraph context regardless of subject) is preserved as behaviour
-    and recorded as data — ThreadHistoryProjection in V3c joins this
+    and recorded as data — a cross-aggregate projection over this
     event against QuestionReceived to answer 'context did not match
     question subject'.
     """

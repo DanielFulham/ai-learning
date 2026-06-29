@@ -67,7 +67,7 @@ class TestTranslateContextNodeUpdate:
     def test_context_none_emits_context_retrieved_with_none(self) -> None:
         """Pinned: the observability-consistency lift. A missed keyword
         match is recorded as ContextRetrieved(context=None), not as a
-        silent absence of the event. ThreadHistoryProjection in V3c joins
+        silent absence of the event. A cross-aggregate projection joins
         on this."""
         run_id = uuid4()
         exchange = _make_exchange(context=None)
@@ -268,3 +268,44 @@ class TestTranslatePropagation:
         )
 
         assert all(e.schema_version == 1 for e in events)
+
+
+class TestTranslatorNodeNameConstants:
+
+    def test_context_node_constant_routes_to_context_retrieved(self) -> None:
+        """Pinned: rename-safe proof. The translator's dispatch is tied to
+        the constant exported from graph_builders — not to a private string
+        copy. If QA_CONTEXT_NODE_NAME is renamed in graph_builders, both
+        the graph and this test break simultaneously, making the coupling
+        visible at test time rather than at runtime."""
+        from application.graph_builders import QA_CONTEXT_NODE_NAME
+
+        run_id = uuid4()
+        exchange = _make_exchange(context="C")
+
+        events = translate_qa_update(
+            node_name=QA_CONTEXT_NODE_NAME,
+            state_delta={"exchange": exchange},
+            run_id=run_id,
+            clock=_fixed_clock(),
+        )
+
+        assert len(events) == 1
+        assert isinstance(events[0], ContextRetrieved)
+
+    def test_qa_node_constant_routes_to_answer_generated(self) -> None:
+        """Pinned: rename-safe proof for QANode. Same rationale as above."""
+        from application.graph_builders import QA_QA_NODE_NAME
+
+        run_id = uuid4()
+        exchange = _make_exchange(answer="A")
+
+        events = translate_qa_update(
+            node_name=QA_QA_NODE_NAME,
+            state_delta={"exchange": exchange},
+            run_id=run_id,
+            clock=_fixed_clock(),
+        )
+
+        assert len(events) == 1
+        assert isinstance(events[0], AnswerGenerated)

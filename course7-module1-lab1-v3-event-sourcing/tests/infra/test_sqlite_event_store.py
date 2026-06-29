@@ -215,3 +215,54 @@ class TestSqliteEventStoreRegistry:
         narrowed_store = SqliteEventStore(db_path, [])
         with pytest.raises(ValueError, match="Unknown event type"):
             narrowed_store.events_for_run(run_id)
+
+
+class TestSqliteEventStoreAuthEventRoundTrip:
+
+    def test_login_attempted_survives_store_reconstruction(
+        self, tmp_path: Path
+    ) -> None:
+        """F01 integration proof: a LoginAttempted event appended to the
+        store can be read back from a fresh store instance on the same
+        file with the union registry. This is the read-side of F01 —
+        V3a's QA-only registry would have accepted the write (no
+        write-side registry check) but raised ValueError at read time.
+
+        The registry is built directly from imports here; the test must
+        not import _ALL_EVENT_TYPES from application.container — the
+        store-level test should not depend on container symbols."""
+        from domain.events.auth_events import (
+            LoginAttempted,
+            LoginFailed,
+            LoginSucceeded,
+        )
+
+        union_registry: list[type[BaseAgentEvent]] = [
+            QuestionReceived,
+            ContextRetrieved,
+            AnswerGenerated,
+            ModelInvocationFailed,
+            LoginAttempted,
+            LoginSucceeded,
+            LoginFailed,
+        ]
+
+        db_path = tmp_path / "test.db"
+        run_id = uuid4()
+        event = LoginAttempted(
+            **_common_kwargs(run_id),
+            username="test_user",
+        )
+
+        first_store = SqliteEventStore(db_path, union_registry)
+        first_store.append(event)
+
+        second_store = SqliteEventStore(db_path, union_registry)
+        result = second_store.events_for_run(run_id)
+
+        assert len(result) == 1
+        assert isinstance(result[0], LoginAttempted)
+        assert result[0].username == event.username
+        assert result[0].event_id == event.event_id
+        assert result[0].aggregate_id == event.aggregate_id
+        assert result[0].occurred_at == event.occurred_at

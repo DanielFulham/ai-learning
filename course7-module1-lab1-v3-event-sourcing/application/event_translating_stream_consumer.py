@@ -33,7 +33,7 @@ class EventTranslatingStreamConsumer:
 
     The translator is injected, not hardcoded. Each agent service binds
     its own translator (`translate_qa_update` for QA, `translate_auth_update`
-    for Auth in V3b, `translate_counter_update` for Counter in V3c). The
+    for Auth in V3b). The V3 series is terminal at V3b. The
     consumer is generic; the translator is the per-service concern.
 
     Translation failures propagate. Bugs (unknown node, malformed delta)

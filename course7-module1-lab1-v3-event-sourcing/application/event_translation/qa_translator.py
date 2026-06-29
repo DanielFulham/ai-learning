@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Any, Callable
 from uuid import UUID, uuid4
 
+from application.graph_builders import QA_CONTEXT_NODE_NAME, QA_QA_NODE_NAME
 from domain.events.qa_events import (
     AnswerGenerated,
     ContextRetrieved,
@@ -9,10 +10,6 @@ from domain.events.qa_events import (
     QAEvent,
 )
 from domain.qa_exchange import QAExchange
-
-
-_CONTEXT_NODE_NAME = "ContextNode"
-_QA_NODE_NAME = "QANode"
 
 
 def translate_qa_update(
@@ -56,7 +53,7 @@ def translate_qa_update(
             f"{type(exchange).__name__}"
         )
 
-    if node_name == _CONTEXT_NODE_NAME:
+    if node_name == QA_CONTEXT_NODE_NAME:
         return [
             ContextRetrieved(
                 event_id=uuid4(),
@@ -66,7 +63,7 @@ def translate_qa_update(
             )
         ]
 
-    if node_name == _QA_NODE_NAME:
+    if node_name == QA_QA_NODE_NAME:
         if exchange.error_info is not None:
             # error_info present → failure path; answer (if present) is the
             # user-safe message, not a successful generation
@@ -95,5 +92,5 @@ def translate_qa_update(
 
     raise ValueError(
         f"Unknown QA node '{node_name}' — translator handles "
-        f"'{_CONTEXT_NODE_NAME}' and '{_QA_NODE_NAME}' only"
+        f"'{QA_CONTEXT_NODE_NAME}' and '{QA_QA_NODE_NAME}' only"
     )

@@ -12,7 +12,7 @@ class ErrorInfo:
 
     Deliberately minimal for V3a. Traceback and timestamp are explicitly
     held back — the event's own occurred_at field carries timing, and
-    traceback expansion is V3b/V3c territory if the event log proves to
+    traceback expansion is future work if the event log proves to
     need it.
     """
 

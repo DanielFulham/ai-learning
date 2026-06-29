@@ -16,6 +16,7 @@ from infra.null_stream_consumer import NullStreamConsumer
 from infra.ollama_chat_model_provider import OllamaChatModelProvider
 from infra.openai_chat_model_provider import OpenAIChatModelProvider
 from infra.sqlite_event_store import SqliteEventStore
+from interfaces.agent_checkpointer_interface import AgentCheckpointerInterface
 from interfaces.agent_event_store_interface import AgentEventStoreInterface
 from interfaces.chat_model_provider_interface import ChatModelProviderInterface
 from interfaces.stream_consumer_interface import StreamConsumerInterface
@@ -149,19 +150,25 @@ class TestContainerNullConsumerWiring:
 
 class TestContainerExplicitInjection:
 
-    def test_explicit_event_store_overrides_sqlite_flag(self) -> None:
-        """Pinned: explicit injection wins. The booleans only select
-        defaults when no instance is passed."""
-        injected = MagicMock(spec=AgentEventStoreInterface)
+    def test_explicit_injections_override_sqlite_flag(self) -> None:
+        """Pinned: explicit injection wins for both persistence concretes.
+        The booleans only select defaults when no instance is passed.
+        Injecting event_store and checkpointer bypasses both SQLite
+        construction paths, so use_sqlite_persistence and db_path are
+        ignored — the /dev/null sentinel is never opened."""
+        injected_store = MagicMock(spec=AgentEventStoreInterface)
+        injected_checkpointer = MagicMock(spec=AgentCheckpointerInterface)
         app = initialise(
             qa_graph=_mock_graph(),
-            event_store=injected,
+            event_store=injected_store,
+            checkpointer=injected_checkpointer,
             use_sqlite_persistence=True,
             db_path="/dev/null",
         )
         qa_service = app.qa
         assert isinstance(qa_service, QAAgentService)
-        assert qa_service._event_store is injected
+        assert qa_service._event_store is injected_store
+        assert app.checkpointer is injected_checkpointer
 
     def test_explicit_inner_consumer_overrides_console_flag(self) -> None:
         injected = MagicMock(spec=StreamConsumerInterface)
@@ -190,9 +197,9 @@ class TestContainerSingleton:
 
     def test_event_store_reference_is_held_by_qa_service(self) -> None:
         """Pinned: the container constructs one event_store and the QA
-        service holds the same reference. V3b and V3c's services will
-        receive the same instance — the singleton contract is what makes
-        ThreadHistoryProjection's cross-aggregate joins meaningful."""
+        service holds the same reference. The Auth service receives the
+        same instance too — the singleton contract is what makes a
+        cross-aggregate projection's joins meaningful."""
         injected_store = MagicMock(spec=AgentEventStoreInterface)
         app = initialise(qa_graph=_mock_graph(), event_store=injected_store)
         qa_service = app.qa
@@ -219,3 +226,61 @@ class TestContainerStateless:
         second = initialise(qa_graph=_mock_graph())
         assert first is not second
         assert first.qa is not second.qa
+
+
+class TestContainerRegistryUnion:
+
+    def test_sqlite_event_store_receives_union_registry(
+        self, tmp_path: Path
+    ) -> None:
+        """Pinned: when use_sqlite_persistence=True, the SqliteEventStore is
+        constructed with a registry list containing all four QA event types
+        AND all three Auth event types. The composition (_ALL_EVENT_TYPES)
+        must be passed at the construction site — not the QA-only constant.
+
+        Patched at the import site in application.container to intercept
+        the constructor call and inspect the registry argument."""
+        from domain.events.auth_events import LoginAttempted, LoginFailed, LoginSucceeded
+        from domain.events.qa_events import (
+            AnswerGenerated,
+            ContextRetrieved,
+            ModelInvocationFailed,
+            QuestionReceived,
+        )
+
+        expected_registry = [
+            QuestionReceived,
+            ContextRetrieved,
+            AnswerGenerated,
+            ModelInvocationFailed,
+            LoginAttempted,
+            LoginSucceeded,
+            LoginFailed,
+        ]
+
+        with patch(
+            "application.container.SqliteEventStore",
+            spec=SqliteEventStore,
+        ) as mock_ctor:
+            mock_ctor.return_value = MagicMock(spec=SqliteEventStore)
+            initialise(
+                qa_graph=_mock_graph(),
+                use_sqlite_persistence=True,
+                db_path=tmp_path / "events.db",
+            )
+            mock_ctor.assert_called_once()
+            _, call_kwargs = mock_ctor.call_args
+            # SqliteEventStore(db_path, registry) — positional args
+            call_args, _ = mock_ctor.call_args
+            actual_registry = call_args[1]
+            assert actual_registry == expected_registry
+
+    def test_in_memory_path_does_not_call_sqlite_event_store(self) -> None:
+        """Pinned: the in-memory path must not construct SqliteEventStore.
+        This test must still pass after the registry union change."""
+        with patch(
+            "application.container.SqliteEventStore",
+            spec=SqliteEventStore,
+        ) as mock_ctor:
+            initialise(qa_graph=_mock_graph())
+            mock_ctor.assert_not_called()
