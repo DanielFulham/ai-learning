@@ -99,13 +99,18 @@ def build_graph(tavily_tool, initial_chain, revisor_chain):
         tool_messages: List[BaseMessage] = []
         for tool_call in last_message.tool_calls:
             if tool_call["name"] in ["AnswerQuestion", "ReviseAnswer"]:
-                call_id = tool_call["id"]
-                search_queries = tool_call["args"].get("search_queries", [])
+                call_id = tool_call.get("id")
+                if call_id is None:
+                    raise ValueError(
+                        f"Tool call for {tool_call.get('name')!r} has no id; "
+                        "cannot construct ToolMessage."
+                    )
+                search_queries = tool_call.get("args", {}).get("search_queries", [])
                 query_results = {}
                 for query in search_queries:
                     query_results[query] = tavily_tool.invoke(query)
                 tool_messages.append(ToolMessage(
-content=json.dumps(query_results, default=str),
+                    content=json.dumps(query_results, default=str),
                     tool_call_id=call_id,
                 ))
         return tool_messages
@@ -121,12 +126,12 @@ content=json.dumps(query_results, default=str),
     def execute_tools_node(state: AgentState) -> dict:
         return {"messages": execute_tools(list(state["messages"]))}
 
-def event_loop(state: AgentState) -> str:
-    last = state["messages"][-1]
-    if isinstance(last, AIMessage) and not last.tool_calls:
-        return END
-    count_tool_visits = sum(isinstance(m, ToolMessage) for m in state["messages"])
-    return END if count_tool_visits >= MAX_ITERATIONS else "execute_tools"
+    def event_loop(state: AgentState) -> str:
+        last = state["messages"][-1]
+        if isinstance(last, AIMessage) and not last.tool_calls:
+            return END
+        count_tool_visits = sum(isinstance(m, ToolMessage) for m in state["messages"])
+        return END if count_tool_visits >= MAX_ITERATIONS else "execute_tools"
 
     graph = StateGraph(AgentState)
     graph.add_node("respond", respond_node)
@@ -170,11 +175,16 @@ def main() -> None:
 
     responses = app.invoke({"messages": [HumanMessage(content=question)]})
 
-print("--- Initial Draft Answer ---")
-first_ai = next((m for m in responses["messages"] if isinstance(m, AIMessage) and m.tool_calls), None)
-if not first_ai:
-    raise RuntimeError("Expected an AIMessage with tool_calls for AnswerQuestion, but none were produced.")
-initial_answer = first_ai.tool_calls[0].get("args", {}).get("answer", "")
+    print("--- Initial Draft Answer ---")
+    first_ai = next(
+        (m for m in responses["messages"] if isinstance(m, AIMessage) and m.tool_calls),
+        None,
+    )
+    if not first_ai:
+        raise RuntimeError(
+            "Expected an AIMessage with tool_calls for AnswerQuestion, but none were produced."
+        )
+    initial_answer = first_ai.tool_calls[0].get("args", {}).get("answer", "")
     print(initial_answer)
     print()
 
