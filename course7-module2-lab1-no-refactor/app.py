@@ -24,13 +24,12 @@ def reflection_node(state: AgentState) -> AgentState:
 
 def should_continue(state: AgentState) -> str:
     messages = state["messages"]
-    print(messages)
-    print(len(messages))
-    print("----------------------------------------------------------------------")
     if len(messages) > 6:
         return END
     return "reflect"
 
+
+load_dotenv()
 
 llm = ChatOpenAI(model="gpt-4.1-mini", temperature=0.0)
 
