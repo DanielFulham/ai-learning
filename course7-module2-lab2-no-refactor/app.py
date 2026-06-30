@@ -14,8 +14,10 @@ from langgraph.graph.message import add_messages
 
 load_dotenv()
 
-assert os.environ.get("TAVILY_API_KEY"), "TAVILY_API_KEY missing from .env"
-assert os.environ.get("OPENAI_API_KEY"), "OPENAI_API_KEY missing from .env"
+if not os.environ.get("TAVILY_API_KEY"):
+    raise RuntimeError("TAVILY_API_KEY missing from .env")
+if not os.environ.get("OPENAI_API_KEY"):
+    raise RuntimeError("OPENAI_API_KEY missing from .env")
 
 MAX_ITERATIONS = 4
 
@@ -103,7 +105,7 @@ def build_graph(tavily_tool, initial_chain, revisor_chain):
                 for query in search_queries:
                     query_results[query] = tavily_tool.invoke(query)
                 tool_messages.append(ToolMessage(
-                    content=json.dumps(query_results),
+content=json.dumps(query_results, default=str),
                     tool_call_id=call_id,
                 ))
         return tool_messages
@@ -119,11 +121,12 @@ def build_graph(tavily_tool, initial_chain, revisor_chain):
     def execute_tools_node(state: AgentState) -> dict:
         return {"messages": execute_tools(list(state["messages"]))}
 
-    def event_loop(state: AgentState) -> str:
-        count_tool_visits = sum(isinstance(m, ToolMessage) for m in state["messages"])
-        if count_tool_visits >= MAX_ITERATIONS:
-            return END
-        return "execute_tools"
+def event_loop(state: AgentState) -> str:
+    last = state["messages"][-1]
+    if isinstance(last, AIMessage) and not last.tool_calls:
+        return END
+    count_tool_visits = sum(isinstance(m, ToolMessage) for m in state["messages"])
+    return END if count_tool_visits >= MAX_ITERATIONS else "execute_tools"
 
     graph = StateGraph(AgentState)
     graph.add_node("respond", respond_node)
@@ -167,8 +170,11 @@ def main() -> None:
 
     responses = app.invoke({"messages": [HumanMessage(content=question)]})
 
-    print("--- Initial Draft Answer ---")
-    initial_answer = responses["messages"][1].tool_calls[0]["args"]["answer"]
+print("--- Initial Draft Answer ---")
+first_ai = next((m for m in responses["messages"] if isinstance(m, AIMessage) and m.tool_calls), None)
+if not first_ai:
+    raise RuntimeError("Expected an AIMessage with tool_calls for AnswerQuestion, but none were produced.")
+initial_answer = first_ai.tool_calls[0].get("args", {}).get("answer", "")
     print(initial_answer)
     print()
 
