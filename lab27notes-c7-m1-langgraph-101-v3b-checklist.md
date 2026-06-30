@@ -1,5 +1,7 @@
 # Course 7 - Lab 27: V3b Implementation Checklist (Binding)
 
+> Code: [`course7-module1-lab1-v3-event-sourcing/`](course7-module1-lab1-v3-event-sourcing/)
+
 Binding execution document for V3b. This checklist maps 1:1 to the pinned findings in the V3a note so V3b can be delivered as an auditable commit sequence, independent of chat history.
 
 Source of truth for finding text: lab27notes-c7-m1-langgraph-101-v3a-event-sourced.md, section "V3a -> V3b Findings (Pinned for the Next Commit)".

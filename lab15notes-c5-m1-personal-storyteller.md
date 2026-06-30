@@ -1,5 +1,7 @@
 # Course 5 — Lab 15: Personal Storyteller
 
+> Code: [`course5-module1-lab1/`](course5-module1-lab1/)
+
 LLM → text → TTS → audio. A topic goes in, an MP3 comes out. ~50 lines of glue between Mistral (via Ollama) and gTTS.
 
 Built as part of the IBM RAG and Agentic AI Professional Certificate — Course 5, Module 1.

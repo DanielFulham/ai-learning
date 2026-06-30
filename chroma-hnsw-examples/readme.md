@@ -1,5 +1,7 @@
 # ChromaDB HNSW Examples
 
+> Location: `chroma-hnsw-examples/`
+
 Demonstrates HNSW index configuration and similarity search using the ChromaDB 
 Python client directly.
 

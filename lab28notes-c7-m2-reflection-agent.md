@@ -1,5 +1,7 @@
 # Course 7 — Lab 28: Reflection Agent with LangGraph
 
+> Code: [`course7-module2-lab1-no-refactor/`](course7-module2-lab1-no-refactor/)
+
 Canonical-first reflection agent — a generate/critique loop where one chain drafts a LinkedIn post and a second chain critiques it, with the critique role-swapped into a `HumanMessage` so the generator treats it as input rather than its own prior output. Run twice: once against `gpt-4.1-mini`, once against local `llama3.2:latest` (3B). No onion port — the architecture is already over-evidenced across five prior agent labs; the value in this lab is the eval/hallucination finding, not folder structure.
 
 Built as part of the IBM RAG and Agentic AI Professional Certificate — Course 7, Module 2, Lesson 1. The IBM lab specifies `langgraph==0.3.31`, `langchain-ibm`, `MessageGraph`, and a LinkedIn-post generator over WatsonX/Granite. This implementation uses `langgraph==1.2.6`, `StateGraph` with the `add_messages` reducer, `gpt-4.1-mini` via `langchain-openai`, and `llama3.2:latest` via `langchain-ollama` for the local comparison run.

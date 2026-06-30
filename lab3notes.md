@@ -1,5 +1,7 @@
 # Course 1 — Lab 3: Build Your First GenAI Application The Right Way
 
+> Code: [`course1-module3/`](course1-module3/)
+
 ## Lab Overview
 
 **Course:** IBM RAG and Agentic AI Professional Certificate — Course 1  

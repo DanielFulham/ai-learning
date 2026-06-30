@@ -1,5 +1,7 @@
 # Course 6 — Lab 22: DataWizard, AI-Powered Data Analysis with LCEL
 
+> Code: [`course6-module2-lab1/`](course6-module2-lab1/)
+
 Onion-architected tool-calling agent over CSV datasets. An LLM orchestrates five
 infrastructure tools through interface contracts to discover, inspect, and
 evaluate data. Demonstrates strict-onion layering, dependency injection,

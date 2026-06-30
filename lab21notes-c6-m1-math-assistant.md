@@ -1,5 +1,7 @@
 # Course 6 — Lab 21: AI Math Assistant (LangChain Tool Calling)
 
+> Code: [`course6-module1-lab1/`](course6-module1-lab1/)
+
 LangChain agent with a math toolkit and a Wikipedia lookup. User asks a math or factual question, the agent decides which tool to call, the tool runs, the agent synthesises an answer. Pure tool-calling agent pattern — no retrieval, no vector store, no embeddings. Built as part of the IBM RAG and Agentic AI Professional Certificate — Course 6, Module 1.
 
 **Not a faithful port.** The IBM notebook targets `initialize_agent` and `langgraph.prebuilt.create_react_agent`, both deprecated. This lab runs against `langchain.agents.create_agent`, the canonical 1.x API. The diff between what the notebook teaches and what the modern API produces is the most valuable artefact here.

@@ -1,5 +1,7 @@
 # Course 3 — Lab 7: Similarity Search by Hand
 
+> Code: notebook only — not checked into the repo
+
 ## Lab Overview
 
 **Course:** IBM RAG and Agentic AI Professional Certificate — Course 3

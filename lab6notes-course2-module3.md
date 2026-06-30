@@ -1,5 +1,7 @@
 # Course 2 — Lab 6: Build an AI Icebreaker Bot with LlamaIndex & IBM Granite
 
+> Code: [`course2-module3-lab/`](course2-module3-lab/)
+
 ## Lab Overview
 
 **Course:** IBM RAG and Agentic AI Professional Certificate — Course 2  

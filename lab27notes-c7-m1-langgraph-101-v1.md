@@ -1,5 +1,7 @@
 # Course 7 — Lab 27: LangGraph 101: Building Stateful AI Workflows (V1 — Canonical)
 
+> Code: [`course7-module1-lab1-v1-canonical/`](course7-module1-lab1-v1-canonical/)
+
 Canonical IBM lab translated faithfully to Python script form, run locally on Ollama. Three worked examples — Auth (conditional + loop), QA (linear + LLM), Counter (cyclic + termination) — exercising every primitive in `langgraph==1.2.5`'s `StateGraph`. No tests, no interfaces, no architectural lift. V1 stays close to the IBM shape so the canonical-vs-current API gap is visible. V2 introduces the onion structure; V3 introduces the event-sourced layer.
 
 Built as part of the IBM RAG and Agentic AI Professional Certificate — Course 7, Module 1, the first lab in the LangGraph track.

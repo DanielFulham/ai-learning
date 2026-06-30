@@ -1,5 +1,7 @@
 # Course 6 — Lab 23: Interactive Tool-Calling Agent
 
+> Code: [`course6-module2-lab2/`](course6-module2-lab2/)
+
 Onion-architected single-turn tool-calling agent that exposes the dispatch loop
 hidden inside `langchain.agents.create_agent`. Two demos (arithmetic and tip
 calculator) share one agent, one container, and one LLM provider through a

@@ -1,5 +1,7 @@
 # Course 4 — Lab 14: AI-Powered YouTube Summariser and QA Tool
 
+> Code: [`course4-module2-lab-2/`](course4-module2-lab-2/)
+
 RAG pipeline over YouTube video transcripts. Summarises videos and answers questions about their content using FAISS for retrieval, MiniLM for embeddings, and Claude Haiku as the LLM.
 
 Built as part of the IBM RAG and Agentic AI Professional Certificate — Course 4, Module 2.

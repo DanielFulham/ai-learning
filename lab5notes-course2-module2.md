@@ -1,5 +1,7 @@
 # Course 2 — Lab 5: Set Up a Simple Gradio Interface to Interact with Your Models
 
+> Code: [`course2-module2-lab/`](course2-module2-lab/)
+
 ## Lab Overview
 
 **Course:** IBM RAG and Agentic AI Professional Certificate — Course 2  

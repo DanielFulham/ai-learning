@@ -1,5 +1,7 @@
 # Course 6 — Lab 24: YouTube Tool-Calling Agent — Three Orchestration Strategies
 
+> Code: [`course6-module2-lab3/`](course6-module2-lab3/)
+
 Onion-architected YouTube agent that implements the same `VideoAgentInterface`
 three ways: an imperative `while`-loop, a fixed two-step LCEL chain, and a
 recursive LCEL chain that runs until the model stops emitting tool calls. The

@@ -1,5 +1,7 @@
 # Course 5 — Lab 19: Style Finder (MM-RAG Computer Vision)
 
+> Code: [`course5-module3-lab1/`](course5-module3-lab1/)
+
 Complete multimodal RAG pipeline for fashion analysis. Image in, fashion analysis out. Combines ResNet50 image encoding, cosine similarity search against a pre-computed vector index, and a vision LLM to generate catalog-style fashion descriptions with retrieved product metadata. Two backends: LLaVA locally via Ollama, and Llama 4 Maverick via IBM watsonx. Built as part of the IBM RAG and Agentic AI Professional Certificate — Course 5, Module 3.
 
 ---

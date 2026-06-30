@@ -1,5 +1,7 @@
 # Course 5 — Lab 16: AI Meeting Assistant
 
+> Code: [`course5-module1-lab2/`](course5-module1-lab2/)
+
 Audio → transcript → cleanup → meeting minutes. A meeting recording goes in, structured minutes and a task list come out. ~80 lines of glue between Whisper, two Ollama calls, and a Gradio UI.
 
 Built as part of the IBM RAG and Agentic AI Professional Certificate — Course 5, Module 1.

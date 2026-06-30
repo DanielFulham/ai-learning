@@ -1,5 +1,7 @@
 # Course 2 — Lab 4: Summarize Private Documents Using RAG, LangChain, and LLMs
 
+> Code: notebook only — not checked into the repo
+
 ## Lab Overview
 
 **Course:** IBM RAG and Agentic AI Professional Certificate — Course 2  

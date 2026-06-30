@@ -1,4 +1,6 @@
 # Lab 9 Notes — Similarity Search on Employee Records using Python and Chroma DB
+
+> Code: [`course3-module2-lab-1/`](course3-module2-lab-1/)
 ## Course 3, Module 2 Lab 1
 
 ---

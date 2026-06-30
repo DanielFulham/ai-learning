@@ -1,5 +1,7 @@
 # Course 1 — Lab 2: Build Smarter AI Apps: Empower LLMs with LangChain
 
+> Code: notebook only — not checked into the repo
+
 ## Lab Overview
 
 **Course:** IBM RAG and Agentic AI Professional Certificate — Course 1  

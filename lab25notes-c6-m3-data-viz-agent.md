@@ -1,5 +1,7 @@
 # Course 6 — Lab 25: Data Visualisation Agent — Explicit Capture via Onion Architecture
 
+> Code: [`course6-module3-lab1/`](course6-module3-lab1/)
+
 Onion-architected natural-language data analytics agent. Wraps a pandas
 DataFrame in a LangChain agent that answers questions, generates code,
 and persists matplotlib figures through a configurable store. Built

@@ -1,5 +1,7 @@
 # Course 5 — Lab 17: DALL-E Image Generation (GPT Image API)
 
+> Code: [`course5-module2-lab1/`](course5-module2-lab1/)
+
 Text prompt in, generated image out. Demonstrates text-to-image generation using the OpenAI Images API, comparing output quality across model generations. Built as part of the IBM RAG and Agentic AI Professional Certificate — Course 5, Module 2.
 
 ---

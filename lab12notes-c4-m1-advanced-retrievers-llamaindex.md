@@ -1,4 +1,6 @@
 # Lab 12 Notes — Explore Advanced Retrievers in LlamaIndex
+
+> Code: notebook only — not checked into the repo
 ## Course 4, Module 1 Lab 2
 
 ---
