@@ -1,4 +1,6 @@
 # Lab 11 Notes — Build a Smarter Search with LangChain Context Retrieval
+
+> Code: notebook only — not checked into the repo
 ## Course 4, Module 1 Lab 1
 
 ---

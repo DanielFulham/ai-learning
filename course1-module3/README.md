@@ -1,5 +1,7 @@
 # Module 3: Build a Generative AI Application with LangChain
 
+> Location: `course1-module3/`
+
 ## Local Setup
 
 - Python 3.11 (via `py -3.11`)

@@ -1,5 +1,7 @@
 # ChromaDB Filtering Examples
 
+> Location: `chroma-filtering-examples/`
+
 Demonstrates metadata and document content filtering using the ChromaDB Python client directly (no LangChain abstraction).
 
 ## Setup

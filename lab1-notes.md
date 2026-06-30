@@ -1,5 +1,7 @@
 # Lab 1: Prompt Engineering and LangChain — My Solutions
 
+> Code: notebook only — not checked into the repo
+
 ## Exercise 1: Basic Prompting with Parameter Tuning
 
 Experimented with temperature, top_k and max_new_tokens to observe how

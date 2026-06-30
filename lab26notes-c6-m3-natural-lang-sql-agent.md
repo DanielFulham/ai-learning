@@ -1,5 +1,7 @@
 # Course 6 — Lab 26: Natural Language SQL Agent
 
+> Code: [`course6-module3-lab2/`](course6-module3-lab2/)
+
 Onion-architected SQL agent that answers natural-language questions about a Chinook database. Hand-rolled tools matching the canonical `SQLDatabaseToolkit` descriptions and output formats. SQLAlchemy access behind `SqlDatabaseInterface`; OpenAI behind `ChatModelProviderInterface`. Logging middleware via `wrap_tool_call` records every tool invocation to a domain-layer `AgentTrace`. Read-only enforced at the SQLite URI as defence-in-depth against DML.
 
 Built as part of the IBM RAG and Agentic AI Professional Certificate — Course 6, Module 3, Lesson 2. The IBM lab specifies `langchain==0.2.1`, `create_sql_agent`, `langchain-experimental`, watsonx + Granite, and MySQL. This implementation follows the official LangChain 1.x SQL agent tutorial (https://docs.langchain.com/oss/python/langchain/sql-agent) instead, using `create_agent`, `gpt-4.1-mini`, and SQLite. The architectural decisions are mine; the IBM lab's example queries are reused as the smoke test set.

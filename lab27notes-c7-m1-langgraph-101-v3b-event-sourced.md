@@ -1,5 +1,7 @@
 # Course 7 — Lab 27: LangGraph 101 (V3b — Auth + Sensitive-Field Policy + SQLite Checkpointer)
 
+> Code: [`course7-module1-lab1-v3-event-sourcing/`](course7-module1-lab1-v3-event-sourcing/)
+
 V3a's event-sourced QA substrate extended with a second service — Auth — sharing the same event store, the same translator pattern, and the same per-run streaming consumer lifecycle. Sensitive-field policy applied at the translator boundary (password discarded at write time, never persisted). `prompt_secret` on the input-provider interface closes the input-side credential gap. `SqliteCheckpointer` lands as the second checkpointer concrete, sharing the SQLite database file with `SqliteEventStore` when persistence is enabled. Composition assertions over the integrated event log pin the cross-service singleton contract that earlier C-prompts only tested per-service. 306 tests pass. Pyright clean on defaults, no `cast`, no `# type: ignore`.
 
 Built as part of the IBM RAG and Agentic AI Professional Certificate — Course 7, Module 1. V3b is the terminal version of this lab; the Counter workflow and cross-aggregate projection were scoped out in favour of moving the certificate forward and landing a clean terminal substrate. The seven-commit V3b sequence is documented in `lab27notes-c7-m1-langgraph-101-v3b-checklist.md` (the binding checklist) and the per-slice methodology audit trail in this lab's gitignored `docs/v3b-c8-deferrals.md`.

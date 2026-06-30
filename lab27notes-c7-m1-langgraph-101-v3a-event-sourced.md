@@ -1,5 +1,7 @@
 # Course 7 — Lab 27: LangGraph 101 (V3a — Event-Sourced QA Workflow)
 
+> Code: [`course7-module1-lab1-v3-event-sourcing/`](course7-module1-lab1-v3-event-sourcing/)
+
 V2's onion-architected QA workflow layered with an append-only event store, per-service event translator, and per-run streaming consumer. SQLite and in-memory event store concretes behind one Protocol. Run-summary projection over the event log. The hallucination from V2 is preserved as the eval-pipeline argument — the event log is what makes it observable as data, not just behaviour. 174 tests pass. Pyright clean on defaults, no `cast`, no `# type: ignore`.
 
 Built as part of the IBM RAG and Agentic AI Professional Certificate — Course 7, Module 1, third commit sequence in the Lab 27 sequence. V1 (canonical-faithful) is in `course7-module1-lab1-v1-canonical/`; V2 (onion-architected) is in `course7-module1-lab1-v2-onion/`. V3b (Auth + sensitive-field policy + SQLite checkpointer) and V3c (Counter + cross-aggregate projection) follow in their own commit sequences.

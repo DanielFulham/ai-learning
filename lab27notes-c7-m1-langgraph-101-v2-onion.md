@@ -1,5 +1,7 @@
 # Course 7 — Lab 27: LangGraph 101: Building Stateful AI Workflows (V2 — Onion-Architected)
 
+> Code: [`course7-module1-lab1-v2-onion/`](course7-module1-lab1-v2-onion/)
+
 V1's three canonical workflows restructured into strict onion architecture. Two LLM provider concretes (Ollama, OpenAI). Graph builders are pure application orchestration. The container is the only file that crosses layers. The entry point is one `demo.py` with argparse dispatch. 116 tests pass. Pyright clean on defaults, no `cast`, no `# type: ignore`.
 
 Built as part of the IBM RAG and Agentic AI Professional Certificate — Course 7, Module 1, second commit in the Lab 27 sequence. V1 (canonical-faithful) is in the sibling `course7-module1-lab1-v1-canonical/`; V3 (event-sourced layer) follows in its own session.

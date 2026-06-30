@@ -1,5 +1,7 @@
 # Course 5 — Lab 20: AI Nutrition Coach (Vision QA)
 
+> Code: [`course5-module3-lab2/`](course5-module3-lab2/)
+
 Flask web app for nutritional analysis of food images. Image in, structured nutrition breakdown out. Pure vision QA — no retrieval, no embeddings, no vector store. A vision LLM receives a base64-encoded image and a structured system prompt, and returns a 6-section nutritional assessment. Two backends: Meta's Llama 4 Maverick via IBM watsonx, and LLaVA locally via Ollama. Built as part of the IBM RAG and Agentic AI Professional Certificate — Course 5, Module 3.
 
 **Not MM-RAG.** Style Finder (Lab 19) was MM-RAG: encode → retrieve → augment → generate. This lab is vision QA: encode → generate. Same "multimodal" umbrella, different architecture. Worth being clear on the distinction.

@@ -1,5 +1,7 @@
 # Course 5 — Lab 18: Image Captioning System (LLaVA + Llama 4 Maverick)
 
+> Code: [`course5-module2-lab2/`](course5-module2-lab2/)
+
 Image in, caption out. Demonstrates multimodal image captioning and visual question answering using two backends: LLaVA locally via Ollama, and Llama 4 Maverick via IBM watsonx. Built as part of the IBM RAG and Agentic AI Professional Certificate — Course 5, Module 2.
 
 ---

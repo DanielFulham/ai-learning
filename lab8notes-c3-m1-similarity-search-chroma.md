@@ -1,4 +1,6 @@
 # Lab 8 Notes — Similarity Search on Text Using Chroma DB and Python
+
+> Code: [`course3-module1-lab-2/`](course3-module1-lab-2/)
 ## Course 3, Module 1
 
 ---

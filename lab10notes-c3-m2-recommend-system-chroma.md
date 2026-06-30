@@ -1,5 +1,8 @@
 
 # Lab 10 Notes — Food Recommendation System Using Chroma DB
+
+> Code: [`course3-module2-lab-2/`](course3-module2-lab-2/)
+
 ## Course 3, Module 2 Lab 2
 
 ---

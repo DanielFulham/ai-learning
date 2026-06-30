@@ -1,5 +1,7 @@
 # Course 4 — Lab 13: Semantic Similarity with FAISS
 
+> Code: notebook only — not checked into the repo
+
 ## Lab Overview
 
 **Course:** IBM RAG and Agentic AI Professional Certificate — Course 4 Module 2
