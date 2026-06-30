@@ -114,6 +114,7 @@ The contract changed alongside the import. Old `TavilySearchResults.invoke()` re
 - **Tool-choice forcing.** `bind_tools(tools=[AnswerQuestion])` permits but doesn't force the tool call. `tool_choice="AnswerQuestion"` would close the trapdoor where the model could return free-form prose and `IndexError` the downstream code. One-line hardening, omitted to match IBM canonical.
 - **Local-model run.** Lab 28's 3B failure under `bind_tools` made the local Reflexion run a confirmation rather than evidence; tool-calling reliability is the harder regime for small models and the lab's existing trace is sufficient for the directionality finding. The 7B+ floor flagged in the module plan would apply if ever revisited.
 - **Persistent state / checkpointing.** Each `app.invoke` runs cold. `MemorySaver` or `SqliteSaver` is a one-line wire-up to make individual rounds resumable; not in scope.
+- **Boundary defensiveness is partial.** `execute_tools` defends against malformed tool calls (missing `id`, missing `args`) at the Copilot review's recommendation. The broader discipline — every infra-boundary read is defensive, every error message carries actionable context — lives in the onion-ported V2 deferred to L29-1 in `cert-deferrals.md`. The fix is local; the pattern is not generalised across the lab.
 
 ---
 
