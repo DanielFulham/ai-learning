@@ -33,12 +33,6 @@ from safe_eval import safe_eval
 
 load_dotenv()
 
-if not os.environ.get("TAVILY_API_KEY"):
-    raise RuntimeError("TAVILY_API_KEY not set in environment (.env)")
-if not os.environ.get("OPENAI_API_KEY"):
-    raise RuntimeError("OPENAI_API_KEY not set in environment (.env)")
-
-
 # ---------------------------------------------------------------------------
 # Model, prompt, state
 # ---------------------------------------------------------------------------
@@ -231,6 +225,11 @@ def render_graph_artefacts(
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    if not os.environ.get("TAVILY_API_KEY"):
+        raise RuntimeError("TAVILY_API_KEY not set in environment (.env)")
+    if not os.environ.get("OPENAI_API_KEY"):
+        raise RuntimeError("OPENAI_API_KEY not set in environment (.env)")
+    
     render_graph_artefacts(graph)
 
     inputs: AgentState = {

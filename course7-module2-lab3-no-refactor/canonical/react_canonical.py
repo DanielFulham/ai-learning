@@ -21,12 +21,6 @@ from typing import Annotated, Sequence, TypedDict
 
 load_dotenv()
 
-if not os.environ.get("TAVILY_API_KEY"):
-    raise RuntimeError("TAVILY_API_KEY not set in environment (.env)")
-if not os.environ.get("OPENAI_API_KEY"):
-    raise RuntimeError("OPENAI_API_KEY not set in environment (.env)")
-
-
 # ---------------------------------------------------------------------------
 # Model, prompt, state
 # ---------------------------------------------------------------------------
@@ -127,6 +121,10 @@ def tool_node(state: AgentState):
     here, only when tool_calls is non-empty). The isinstance check documents
     that invariant in code and fails loudly if the topology is ever changed
     without updating this node.
+
+    Plain strings pass through as-is; anything else gets JSON-encoded.
+    Avoids wrapping `"A light jacket..."` as `'"A light jacket..."'` — the
+    model shouldn't have to unquote its own tool results.
     """
     last = state["messages"][-1]
     if not isinstance(last, AIMessage):
@@ -137,9 +135,14 @@ def tool_node(state: AgentState):
     outputs: list[ToolMessage] = []
     for tool_call in last.tool_calls:
         tool_result = tools_by_name[tool_call["name"]].invoke(tool_call["args"])
+        content = (
+            tool_result
+            if isinstance(tool_result, str)
+            else json.dumps(tool_result, default=str)
+        )
         outputs.append(
             ToolMessage(
-                content=json.dumps(tool_result, default=str),
+                content=content,
                 name=tool_call["name"],
                 tool_call_id=tool_call["id"],
             )
@@ -223,6 +226,11 @@ def render_graph_artefacts(compiled_graph, output_dir: str = ".") -> None:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    if not os.environ.get("TAVILY_API_KEY"):
+        raise RuntimeError("TAVILY_API_KEY not set in environment (.env)")
+    if not os.environ.get("OPENAI_API_KEY"):
+        raise RuntimeError("OPENAI_API_KEY not set in environment (.env)")
+    
     render_graph_artefacts(graph)
 
     inputs: AgentState = {

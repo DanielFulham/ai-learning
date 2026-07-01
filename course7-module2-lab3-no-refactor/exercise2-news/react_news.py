@@ -36,12 +36,6 @@ from typing import Annotated, Sequence, TypedDict
 
 load_dotenv()
 
-if not os.environ.get("TAVILY_API_KEY"):
-    raise RuntimeError("TAVILY_API_KEY not set in environment (.env)")
-if not os.environ.get("OPENAI_API_KEY"):
-    raise RuntimeError("OPENAI_API_KEY not set in environment (.env)")
-
-
 # ---------------------------------------------------------------------------
 # Models, prompt, state
 # ---------------------------------------------------------------------------
@@ -136,7 +130,13 @@ def call_model(state: AgentState):
 
 
 def tool_node(state: AgentState):
-    """Execute all tool calls from the last message in the state."""
+    """Execute all tool calls from the last message in the state.
+
+    Plain strings pass through as-is; anything else gets JSON-encoded.
+    `news_summarizer_tool` returns a formatted string — without this check
+    the ToolMessage content would be a double-quoted JSON string the model
+    has to unwrap before synthesising the final answer.
+    """
     last = state["messages"][-1]
     if not isinstance(last, AIMessage):
         raise TypeError(
@@ -146,15 +146,19 @@ def tool_node(state: AgentState):
     outputs: list[ToolMessage] = []
     for tool_call in last.tool_calls:
         tool_result = tools_by_name[tool_call["name"]].invoke(tool_call["args"])
+        content = (
+            tool_result
+            if isinstance(tool_result, str)
+            else json.dumps(tool_result, default=str)
+        )
         outputs.append(
             ToolMessage(
-                content=json.dumps(tool_result, default=str),
+                content=content,
                 name=tool_call["name"],
                 tool_call_id=tool_call["id"],
             )
         )
     return {"messages": outputs}
-
 
 def should_continue(state: AgentState):
     """Route from `agent`: to `tools` if the model emitted tool calls, else END."""
@@ -227,6 +231,11 @@ def render_graph_artefacts(
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    if not os.environ.get("TAVILY_API_KEY"):
+        raise RuntimeError("TAVILY_API_KEY not set in environment (.env)")
+    if not os.environ.get("OPENAI_API_KEY"):
+        raise RuntimeError("OPENAI_API_KEY not set in environment (.env)")
+
     render_graph_artefacts(graph)
 
     inputs: AgentState = {

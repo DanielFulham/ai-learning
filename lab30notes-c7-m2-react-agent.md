@@ -35,7 +35,7 @@ Each `react_*.py` produces its own Mermaid artefact (`graph_*.mmd`/`graph_*.png`
 | Safe expression eval | AST walker with explicit operator/function/name allowlists (`safe_eval.py`) |
 | Architecture | Canonical, no onion port |
 | Visualisation | `get_graph().draw_mermaid()` / `draw_mermaid_png()` via mermaid.ink — no `pygraphviz` |
-| Test surface | 47 tests (40 `safe_eval` unit tests, 3 canonical smoke, 4 news smoke) |
+| Test surface | 40 tests (40 `safe_eval` unit tests, 3 canonical smoke, 4 news smoke) |
 
 ---
 
@@ -68,7 +68,7 @@ Tests from lab root:
 pytest
 ```
 
-47 tests, no API key required (safe_eval is pure, smoke tests mock the LLM and Tavily).
+40 tests, no API key required (safe_eval is pure, smoke tests mock the LLM and Tavily).
 
 ---
 
