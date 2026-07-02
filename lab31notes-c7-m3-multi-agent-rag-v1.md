@@ -1,6 +1,6 @@
 # Course 7 — Lab 31: DocChat — Multi-Agent RAG
 
-> Code: not committed here. This is IBM's Apache-2.0 lab, ported and run locally against my own stack. Upstream: [ibm-developer-skills-network/zzpwx](https://github.com/ibm-developer-skills-network/zzpwx) (branch `2-final`) — follow that repo's README to run it. This note is the port record and the findings, not a re-publication of the lab code.
+> Code: not committed here. This is IBM's Apache-2.0 lab, ported and run locally against my own stack. Upstream: [ibm-developer-skills-network/zzpwx](https://github.com/ibm-developer-skills-network/zzpwx-docchat) (branch `2-final`) — follow that repo's README to run it. This note is the port record and the findings, not a re-publication of the lab code.
 
 Multi-agent RAG over uploaded documents, and the first Module 3 lab that isn't a variation on a single-agent reasoning loop. A LangGraph `StateGraph` routes a query through three agents with distinct prompts, temperatures, and roles — relevance check → research (draft answer) → verification (fact-check against retrieved context) — with a re-research loop on failed verification. Retrieval is hybrid (BM25 + vector via `EnsembleRetriever`) over Docling-parsed documents in ChromaDB. No onion port at V1 — this is the canonical build run locally; the onion refactor is the planned V2, where the three-agent decomposition, the hybrid retriever, and the verification loop are the patterns worth banking (or explicitly rejecting) for Hooperman.
 
