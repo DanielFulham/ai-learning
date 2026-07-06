@@ -51,7 +51,7 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
-`.env` at the lab root — both keys needed even if only running Anthropic scripts, because `run_parallel.py`'s subprocess-per-provider mode reads both at compile time via the `LLM_PROVIDER` env var:
+`.env` at the lab root — set `ANTHROPIC_API_KEY` for Anthropic runs; `OPENAI_API_KEY` is only required if you run the default `python run_parallel.py` compare mode (it spawns both providers):
 
 ```
 ANTHROPIC_API_KEY=sk-ant-...
