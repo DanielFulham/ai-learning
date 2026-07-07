@@ -2,7 +2,7 @@
 
 > Code: [`course8-module1-lab2-v1/`](course8-module1-lab2-v1/)
 
-Two agentic design patterns - Orchestrator-Worker (dynamic dispatch via `Send()` with async workers) and Reflection (generator-evaluator loop with two-persona generation and explicit termination reason) - implemented as separate LangGraph modules with a shared LLM factory. Modernised against the notebook's 0.6.6 shape: `with_structured_output(TargetGradeDecision)` over `response.content.lower()` for classifier extraction, async `chef_worker` nodes so `Send()` fan-out delivers concurrent HTTP, `MAX_REFLECTION_ITERATIONS` module constant with `>=` cap check (fixing the notebook's `>` off-by-one), a dedicated `finalize` node that populates `terminated_reason` so cap-hit doesn't silently return "Accepted", and `NotRequired` on graph-populated state fields so the invoke seam accepts partial dicts.
+Two agentic design patterns - Orchestrator-Worker (dynamic dispatch via `Send()` with async workers) and Reflection (generator-evaluator loop with two-persona generation and explicit termination reason) - implemented as separate LangGraph modules with a shared LLM factory. Modernised against the notebook's 0.6.6 shape: `with_structured_output(TargetGradeDecision)` over `response.content.lower()` for classifier extraction, async `chef_worker` nodes so `Send()` fan-out delivers concurrent HTTP, `MAX_REFLECTION_ITERATIONS` module constant with `>=` cap check (fixing the notebook's `>` off-by-one), a dedicated `finalize` node that populates `terminated_reason` so cap-hit doesn't silently return "Accepted", and `NotRequired` on `InvestmentState`'s graph-populated fields so reflection's invoke seam accepts partial dicts (`MealPlanState` uses empty defaults for the same purpose since its `str`/`list` types accept them honestly).
 
 Built as part of the IBM RAG and Agentic AI Professional Certificate - Course 8, Module 1 (Lab 33, following Lab 32's workflow patterns). The IBM lab specifies `langgraph==0.6.6`, `langchain-openai==0.3.27`, `pygraphviz==1.14`, `ChatOpenAI(gpt-4o-mini)` with `litellm.ssl_verify=False` scaffolding that's dead code - `litellm` isn't wired to any downstream pipe. This implementation uses `langgraph==1.2.7`, `langchain-anthropic==1.4.8`, `python-dotenv==1.1.1`, `draw_mermaid_png()` via mermaid.ink, Claude Haiku 4.5 as the model, and adds Ruff as the format-on-save + lint layer scoped to the lab folder via `pyproject.toml` + `.vscode/settings.json`.
 
@@ -28,7 +28,7 @@ Each pattern's `__main__` invokes the compiled graph via `await app.ainvoke(...)
 | LLM factory | `get_llm(temperature=DEFAULT_TEMPERATURE)` in `shared.py` - override to `0.0` for classifiers, `0.7` (default) for generators |
 | Graph construction | `langgraph==1.2.7` - `StateGraph` per pattern, `add_edge(START/END, ...)` |
 | Structured output | `llm.with_structured_output(Schema)` - `Dishes`, `TargetGradeDecision`, `Feedback` |
-| State shape | `TypedDict` with `NotRequired` on graph-populated fields (`MealPlanState`, `InvestmentState`) |
+| State shape | `TypedDict` per pattern; `NotRequired` on `InvestmentState`'s graph-populated fields (`Grade` Literal can't take empty defaults); `MealPlanState` uses empty `str`/`list` defaults |
 | Dynamic dispatch | `Send()` API in `dispatch_to_chefs`; `add_conditional_edges` with list not dict for `Send`-shaped routers |
 | Concurrent-write reducer | `Annotated[list[str], operator.add]` on `MealPlanState.completed_menu` and `WorkerState.completed_menu` |
 | Async I/O | `async def chef_worker` with `await chef_pipe.ainvoke(...)`, `asyncio.run(_run())` at entry |
@@ -37,7 +37,7 @@ Each pattern's `__main__` invokes the compiled graph via `await app.ainvoke(...)
 | Checkpointer | `InMemorySaver` wired at compile time on both patterns; `thread_id` UUID per invocation |
 | Node-name constants | Module-level constants for every node string |
 | Visualisation | `get_graph().draw_mermaid_png()` via mermaid.ink |
-| Lint / format | `ruff==0.14.5` via `pyproject.toml` + `.vscode/settings.json`, scoped to lab folder |
+| Lint / format | `ruff==0.14.5` via `pyproject.toml` (`.vscode/settings.json` for editor integration, gitignored as personal preference) |
 | Architecture | Flat modules - no onion port at V1, no Pydantic state at V1 |
 
 ---

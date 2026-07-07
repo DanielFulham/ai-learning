@@ -1,8 +1,8 @@
-from langchain_anthropic import ChatAnthropic
-from langgraph.graph.state import CompiledStateGraph
 from pathlib import Path
 
 from dotenv import load_dotenv
+from langchain_anthropic import ChatAnthropic
+from langgraph.graph.state import CompiledStateGraph
 
 load_dotenv()
 
@@ -23,6 +23,7 @@ def get_llm(temperature: float = DEFAULT_TEMPERATURE) -> ChatAnthropic:
         timeout=None,
         stop=None,
     )
+
 
 def describe_graph(app: CompiledStateGraph) -> None:
     """Print the graph topology — nodes and edges — for a quick sanity check."""
