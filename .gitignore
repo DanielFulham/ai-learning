@@ -1,12 +1,12 @@
 course2-module3-lab/icebreaker/README.md
-.vscode/launch.json
-venv/
+**/.vscode/launch.json
+**/venv/
 .env
 my_env/
 __pycache__/
 *.pyc
 *.pem
-.vscode/settings.json
+**/.vscode/settings.json
 *.mp3
 *.wav
 *.ipynb
@@ -25,3 +25,6 @@ scratchpad/
 cert-deferrals.md
 post-cert-tasks.md
 /zzpwx-docchat
+
+# Ruff / linting caches (generated per-lab, never committed)
+.ruff_cache/
