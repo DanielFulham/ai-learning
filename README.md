@@ -15,7 +15,7 @@ Working through the IBM RAG and Agentic AI Professional Certificate as part of m
 - Course 5: Build Multimodal Generative AI Applications ✅
 - Course 6: Fundamentals of Building AI Agents ✅
 - Course 7: Agentic AI with LangChain and LangGraph ✅
-- Course 8: Agentic AI with LangGraph, CrewAI, AutoGen and BeeAI 🔄 (Module 1 — Lab 32 workflow patterns V1 + Lab 33 orchestration & evaluation V1)
+- Course 8: Agentic AI with LangGraph, CrewAI, AutoGen and BeeAI 🔄 (Module 1 complete — Labs 32 & 33 V1 shipped; Module 2 CrewAI next)
 - Course 9: Build AI Agents using MCP
 
 ## Labs
