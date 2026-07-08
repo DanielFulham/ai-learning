@@ -76,8 +76,8 @@ course8-module1-lab2-v1/
 │
 ├── requirements.txt
 ├── pyproject.toml                # Ruff config (line-length 100, py313, E/F/I/W/UP)
-├── .vscode/settings.json         # format-on-save + fix-on-save, Ruff as default formatter
-├── .env                          # ANTHROPIC_API_KEY
+├── .vscode/settings.json         # (local-only, gitignored) format-on-save + fix-on-save
+├── .env                          # (local-only, gitignored) ANTHROPIC_API_KEY
 │
 ├── graph_orchestrator_worker.png # rendered topology, dashed edge on the Send dispatch
 └── graph_reflection.png          # rendered topology, dashed edges labelled accepted/rejected
