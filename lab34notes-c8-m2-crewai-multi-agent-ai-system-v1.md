@@ -9,7 +9,7 @@ Three-agent sequential content pipeline in CrewAI. `research_agent` (Senior Rese
 ```powershell
 python -m venv venv
 .\venv\Scripts\Activate.ps1
-pip install -r requirements.txt  # antropic, crewai, crewai-tools, python-dotenv
+pip install -r requirements.txt  # anthropic, crewai, crewai-tools, python-dotenv
 Copy-Item .env.example .env
 # Fill in ANTHROPIC_API_KEY and SERPER_API_KEY in .env
 python content_pipeline.py
