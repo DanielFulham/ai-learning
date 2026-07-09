@@ -1,0 +1,12 @@
+leftover_task:
+  description: >
+    Analyze the shopping list for '{meal_name}' and identify ingredients that might result in leftovers or partial usage.
+    Suggest additional quick meals or recipes that can use these leftover ingredients within the {budget} budget.
+    Consider dietary restrictions: {dietary_restrictions}.
+  expected_output: >
+    A ~300-word markdown-formatted leftover guide with sections:
+    ## Leftover Ingredients — bullet list of 3-5 ingredients likely to have leftovers with approximate quantity remaining
+    ## Bonus Recipe Ideas — 2-3 quick recipes using those leftovers, each with a 1-2 sentence description
+    ## Storage Tips — 2-3 tips for keeping leftovers fresh.
+    Assume upstream shopping list is authoritative; do not add new ingredients.
+  agent: leftover_manager
