@@ -12,8 +12,8 @@ class LeftoversCrew:
     agents_config: ClassVar[str | dict[str, dict[str, str]]] = "config/agents.yaml"
     tasks_config: ClassVar[str | dict[str, dict[str, str]]] = "config/tasks.yaml"
 
-    agents: list[BaseAgent] = []
-    tasks: list[Task] = []
+    agents: ClassVar[list[BaseAgent]] = []
+    tasks: ClassVar[list[Task]] = []
 
     def __init__(self, llm: LLM) -> None:
         self._llm = llm
