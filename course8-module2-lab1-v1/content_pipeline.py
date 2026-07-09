@@ -1,3 +1,5 @@
+import os
+
 from crewai import LLM, Agent, Crew, Process, Task
 from crewai.crews.crew_output import CrewOutput
 from crewai.types.usage_metrics import UsageMetrics
@@ -5,6 +7,14 @@ from crewai_tools import SerperDevTool
 from dotenv import load_dotenv
 
 load_dotenv()
+
+tracing_enabled = (
+    os.getenv("CREWAI_TRACING_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+)
+assert not tracing_enabled, (
+    "CREWAI_TRACING_ENABLED must be false to keep CrewAI tracing/telemetry disabled. "
+    "Set CREWAI_TRACING_ENABLED=false in your .env."
+)
 
 llm = LLM(model="anthropic/claude-haiku-4-5", max_tokens=2000)
 
