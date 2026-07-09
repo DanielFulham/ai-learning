@@ -19,18 +19,14 @@ Sign up at [serper.dev](https://serper.dev) for a free-tier API key.
 
 ## File layout
 
-```
+~~~
 course8-module2-lab1-v1/
 ├── content_pipeline.py           # LLM + agents + tasks + crew, main() at bottom
-│
+├── smoke_serper.py               # Serper connectivity smoke test (optional)
 ├── requirements.txt
 ├── pyproject.toml                # Ruff config
-├── .vscode/settings.json         # (gitignored) format-on-save
-├── .env                          # (gitignored) ANTHROPIC_API_KEY, SERPER_API_KEY, CREWAI_TRACING_ENABLED
-├── .env.example                  # committed template
-├── .gitignore
-└── README.md
-```
+└── .env.example                  # committed template (copy to .env locally)
+~~~
 
 ---
 
