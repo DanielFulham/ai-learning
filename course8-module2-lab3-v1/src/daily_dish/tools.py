@@ -13,6 +13,7 @@ build_llm() factory shape from config.py).
 
 from __future__ import annotations
 
+import os
 import urllib.request
 from pathlib import Path
 
@@ -36,9 +37,15 @@ def build_serper_tool() -> SerperDevTool:
     """Construct a SerperDevTool for web search.
 
     Reads SERPER_API_KEY from environment (populated by config.py's
-    dotenv load and fail-loud check). No arguments — SerperDevTool
-    picks up the key from env automatically.
+    dotenv load). Checked here rather than in config.py because
+    task_centric.py never calls this function and shouldn't be forced
+    to have a Serper key just to run. No arguments to SerperDevTool
+    itself — it picks up the key from env automatically once present.
     """
+    if not os.environ.get("SERPER_API_KEY"):
+        raise RuntimeError(
+            "SERPER_API_KEY missing from environment. Copy .env.example to .env and populate it."
+        )
     return SerperDevTool()
 
 

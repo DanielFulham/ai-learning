@@ -11,7 +11,7 @@ the loop by running it.
 Setup:
 - Agent has BOTH tools: [pdf_tool, serper_tool]
 - Task 1 (retrieval) binds ONLY [pdf_tool]
-- Task 2 (drafting) binds no tools
+- Task 2 (drafting) sets no tools of its own
 
 Prediction: if override holds, Task 1 will not invoke Serper even though
 the agent "has" it. Query 4 (parking) is the critical test — Approach 1
@@ -19,6 +19,15 @@ escalated to Serper on this query, Approach 2 could not (no Serper
 anywhere). If Approach 3 matches Approach 2's behaviour, override is
 confirmed. If it matches Approach 1's behaviour, augmentation is
 confirmed.
+
+Note on Task 2: CrewAI's Task.check_tools validator backfills an empty
+task-level tools list from the agent's tools when the agent has any
+(crewai/task.py). So Task 2 doesn't actually have zero tools — it has
+both [pdf_tool, serper_tool], same as the agent. It just never invokes
+either, since Task 1's retrieved context is already enough to draft a
+response. This only matters here because the agent has non-empty tools;
+task_centric.py's Task 2 is unaffected since that agent's tools are also
+empty, so there's nothing to fall back to.
 """
 
 from __future__ import annotations
@@ -36,7 +45,8 @@ def build_crew() -> Crew:
     The critical distinction from task_centric.py:
     - Agent gets BOTH tools attached
     - Task 1 binds only PDF
-    - Task 2 binds nothing
+    - Task 2 sets no tools of its own (see module docstring — this does
+      not mean Task 2 has zero tools; CrewAI backfills from the agent)
 
     If task-level tools override agent-level tools during task execution,
     Task 1 will not have Serper available even though the agent "has" it.

@@ -137,7 +137,7 @@ Full three-way token comparison across identical fixture queries:
 
 **F-L36-4 - `cached_prompt_tokens=0` across all 14 kickoffs.** Third consecutive lab (L34, L35, L36) confirming CrewAI 1.15.2's native Anthropic provider doesn't wire through prompt caching.
 
-**F-L36-5 - Task-level tools override agent-level tools during task execution.** The lab's core finding. Agent declared `[pdf_tool, serper_tool]`, Task 1 bound only `[pdf_tool]`. On Query 4, Serper never fired - Approach 3's answer matched Approach 2's exactly (FAQ-grounded, no fabricated web data). Override is deterministic replacement at the invocation layer, confirming the CrewAI docs' claim.
+**F-L36-5 - Task-level tools override agent-level tools during task execution, but only when the task's list is non-empty.** The lab's core finding. Agent declared `[pdf_tool, serper_tool]`, Task 1 bound only `[pdf_tool]`. On Query 4, Serper never fired - Approach 3's answer matched Approach 2's exactly (FAQ-grounded, no fabricated web data). Override is deterministic replacement at the invocation layer, confirming the CrewAI docs' claim - for Task 1. Task 2 sets no tools of its own, and CrewAI's `Task.check_tools` validator backfills an empty task-level list from the agent's tools whenever the agent has any (`crewai/task.py`). So Task 2 actually has both tools available, same as the agent - it just never invokes either, since Task 1's retrieved context is already enough to draft a response. `tools=[]` on a task does not mean "no tools" when its agent has tools; it means "inherit the agent's tools."
 
 **F-L36-6 - Override isn't cost-free.** Approach 3 costs 16394 prompt tokens total, between A1 (17046) and A2 (12596) - the Serper tool description still rides in the prompt even though it's unreachable at task-execution time (~700-800 tokens/query more than Approach 2). Use `tools=[]` on the agent if nothing else needs the excluded tool; override at task level only if something else does.
 
@@ -147,7 +147,7 @@ Full three-way token comparison across identical fixture queries:
 |---|---|---|---|
 | Agent tools | `[pdf, serper]` | `[]` | `[pdf, serper]` |
 | Task 1 tools | (single-task shape) | `[pdf]` | `[pdf]` |
-| Task 2 tools | - | `[]` | `[]` |
+| Task 2 tools | - | `[]` | `[pdf, serper]` (agent fallback, unused) |
 | Tasks per query | 1 | 2 | 2 |
 | Prompt token floor | ~3k (steady state) + tool desc | ~3.1k per task | ~3.8k per task |
 | Query 4 behaviour | PDF → Serper escalation | PDF only | PDF only (override) |
