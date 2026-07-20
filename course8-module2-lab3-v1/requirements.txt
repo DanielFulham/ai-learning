@@ -1,0 +1,5 @@
+anthropic==0.116.0
+crewai==1.15.2
+crewai-tools[rag]==1.15.2
+python-dotenv==1.2.2
+sentence-transformers==5.1.0
