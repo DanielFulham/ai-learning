@@ -3,7 +3,7 @@
 **Version:** V1 (initial modernised lab)
 **Completed:** 9 July 2026
 **Notebook:** `Create_a_Structured_Meal_Grocery_Planner_with_CrewAI.ipynb`
-**Repo:** `course8-module2-lab2-v1/`
+**Repo:** [`course8-module2-lab2-v1/`](course8-module2-lab2-v1/)
 
 ---
 

@@ -1,5 +1,7 @@
 # Lab 36 - CrewAI Agents-with-Tools vs Tasks-with-Tools
 
+> Code: [`course8-module2-lab3-v1/`](course8-module2-lab3-v1/)
+
 Course 8 Module 2. Modernises the Daily Dish notebook (watsonx Granite → Anthropic Haiku 4.5 native) and closes an open question the notebook raises: **when both an Agent and a Task declare tools, does the task-level list override the agent-level list, or augment it?**
 
 Three approach scripts against identical fixture queries, plus a custom `@tool` decorator appendix. 14 kickoffs total. Task-level tools override - confirmed by running it.
