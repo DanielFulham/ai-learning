@@ -14,7 +14,7 @@ dietary_filtering_task:
   agent: dietary_filtering_agent
   expected_output: >
     A comma-separated list of ingredients from the input that comply with the dietary restriction.
-    Preserve the order and formatting of the input. Return the input list unchanged if the restriction is "none".
+    Ingredients should be lowercased and free of duplicates. Return the input list unchanged if the restriction is "none".
 
 nutrient_analysis_task:
   description: >
@@ -28,8 +28,8 @@ nutrient_analysis_task:
 
 recipe_suggestion_task:
   description: >
-    Generate 2-3 recipe ideas using only the filtered ingredients, aligned with the user's calorie goals
-    and dietary restrictions. Do not introduce ingredients not present in the filtered list except for
+    Generate 2-3 recipe ideas using only the filtered ingredients, aligned with the user's dietary restrictions.
+    Do not introduce ingredients not present in the filtered list except for
     common pantry staples (salt, pepper, water, cooking oil).
   agent: recipe_suggestion_agent
   expected_output: >
