@@ -1,0 +1,38 @@
+ingredient_detection_task:
+  description: >
+    Detect the ingredients from the image at {uploaded_image} using the extract_ingredients tool,
+    then clean the raw output into a normalised ingredient list.
+  agent: ingredient_detection_agent
+  expected_output: >
+    A comma-separated list of food ingredients detected in the image, up to about 15.
+    Ingredients are lowercased, singular where possible, and free of noise or duplicates.
+
+dietary_filtering_task:
+  description: >
+    Filter the detected ingredients based on the user's {dietary_restrictions}.
+    If the restriction is "none", return the input list unchanged.
+  agent: dietary_filtering_agent
+  expected_output: >
+    A comma-separated list of ingredients from the input that comply with the dietary restriction.
+    Ingredients should be lowercased and free of duplicates. Return the input list unchanged if the restriction is "none".
+
+nutrient_analysis_task:
+  description: >
+    Analyse the meal in the image at {uploaded_image} using the analyse_nutrition tool
+    and produce a structured nutrient breakdown.
+  agent: nutrient_analysis_agent
+  expected_output: >
+    A structured nutrient analysis of the meal including: the identified dish name and portion size,
+    a per-portion calorie estimate for the meal, macronutrient totals (protein, carbohydrates, fats),
+    3-5 key vitamins with %DV, 3-5 key minerals with amounts, and a 2-3 sentence health evaluation.
+
+recipe_suggestion_task:
+  description: >
+    Generate 2-3 recipe ideas using only the filtered ingredients, aligned with the user's dietary restrictions.
+    Do not introduce ingredients not present in the filtered list except for
+    common pantry staples (salt, pepper, water, cooking oil).
+  agent: recipe_suggestion_agent
+  expected_output: >
+    2-3 recipe suggestions. Each recipe has a title, an ingredient list drawn from the filtered ingredients
+    plus common pantry staples, step-by-step preparation instructions in 4-8 numbered steps,
+    and an estimated calorie count per serving.
