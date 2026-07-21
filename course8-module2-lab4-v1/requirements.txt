@@ -1,0 +1,17 @@
+# Framework core - L35 lockstep discipline (crewai-tools declares crewai==exact)
+crewai==1.15.2
+crewai-tools==1.15.2
+
+# Anthropic SDK - L35 correction: NOT installed transitively by crewai
+# Required for (a) CrewAI's native AnthropicCompletion provider and
+# (b) direct SDK calls inside the vision tool
+anthropic==0.117.0
+
+# Environment
+python-dotenv==1.2.2
+
+# UI
+gradio==6.19.0
+
+# Image handling for the vision tool (base64 encoding + media_type detection)
+pillow==12.3.0
