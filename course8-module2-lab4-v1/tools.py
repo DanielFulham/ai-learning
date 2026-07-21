@@ -107,6 +107,10 @@ _EXTRACT_PROMPT: Final[str] = (
 
 @tool("Extract ingredients from a food image")
 def extract_ingredients(image_path: str) -> str:
+    """Vision call: identify the food ingredients visible in the image at
+    `image_path`, returned as a comma-separated string. (crewai's @tool
+    requires a docstring; it also serves as the tool description shown to
+    the agent.)"""
     encoded, media_type = _encode_image(image_path)
     client = get_client()
 
@@ -127,11 +131,11 @@ def extract_ingredients(image_path: str) -> str:
 @tool("Clean and normalise a raw ingredient list")
 def filter_ingredients(raw_ingredients: str) -> list[str]:
     """Pure Python; no LLM call."""
-    return [
+    return list(dict.fromkeys(
         ingredient.strip().lower()
         for ingredient in raw_ingredients.split(",")
         if ingredient.strip()
-    ]
+    ))
 
 
 _DIETARY_FILTER_PROMPT_TEMPLATE: Final[str] = (
@@ -200,7 +204,7 @@ def analyse_nutrition(image_path: str) -> NutrientAnalysisOutput:
 
     response = client.messages.parse(
         model=MODEL,
-        max_tokens=1024,
+        max_tokens=2048,
         messages=_build_vision_message(encoded, media_type, _ANALYSE_PROMPT),
         output_format=NutrientAnalysisOutput,
     )

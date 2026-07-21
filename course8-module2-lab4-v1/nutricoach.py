@@ -22,14 +22,20 @@ Design notes:
   request (L35 kickoff-time inputs pattern).
 - No try/except around crew.kickoff — Gradio surfaces exceptions in the UI
   natively, which is honest fail-loud behaviour matching the tools' posture.
+- Windows-path round-trip via LLM tool-arg: paths flow through
+  {uploaded_image} interpolation into the task description, then the agent
+  re-emits them verbatim in a JSON tool call. Empirically holds on Windows
+  across smoke tests; correct V2 fix is binding the path outside the LLM's
+  chosen args (closure/context), not string-round-trip.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Final
 
 import gradio as gr
-from crewai.crews.crew_output import CrewOutput
+from crewai import CrewOutput
 from dotenv import load_dotenv
 from gradio.themes import Citrus
 
@@ -49,6 +55,8 @@ load_dotenv()
 
 _recipe_crew: Final = build_recipe_crew()
 _analysis_crew: Final = build_analysis_crew()
+
+_EXAMPLES_DIR: Final[Path] = Path(__file__).parent / "examples"
 
 _DIETARY_CHOICES: Final[list[str]] = [e.value for e in DietaryRestriction]
 
@@ -231,10 +239,10 @@ with gr.Blocks() as demo:
         with gr.Column(scale=2, min_width=600):
             gr.Examples(
                 examples=[
-                    ["examples/food-1.jpg", DietaryRestriction.VEGAN.value, "recipe"],
-                    ["examples/food-2.jpg", DietaryRestriction.NONE.value, "analysis"],
-                    ["examples/food-3.jpg", DietaryRestriction.KETO.value, "recipe"],
-                    ["examples/food-4.jpg", DietaryRestriction.NONE.value, "analysis"],
+                    [str(_EXAMPLES_DIR / "food-1.jpg"), DietaryRestriction.VEGAN.value, "recipe"],
+                    [str(_EXAMPLES_DIR / "food-2.jpg"), DietaryRestriction.NONE.value, "analysis"],
+                    [str(_EXAMPLES_DIR / "food-3.jpg"), DietaryRestriction.KETO.value, "recipe"],
+                    [str(_EXAMPLES_DIR / "food-4.jpg"), DietaryRestriction.NONE.value, "analysis"],
                 ],
                 inputs=[image_input, dietary_input, workflow_radio],
                 label="Try an example",

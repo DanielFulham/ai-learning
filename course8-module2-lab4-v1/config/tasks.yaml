@@ -4,17 +4,17 @@ ingredient_detection_task:
     then clean the raw output into a normalised ingredient list.
   agent: ingredient_detection_agent
   expected_output: >
-    A comma-separated list of 5-15 food ingredients detected in the image.
+    A comma-separated list of food ingredients detected in the image, up to about 15.
     Ingredients are lowercased, singular where possible, and free of noise or duplicates.
 
 dietary_filtering_task:
   description: >
     Filter the detected ingredients based on the user's {dietary_restrictions}.
-    If the restriction is an empty string, return the input list unchanged.
+    If the restriction is "none", return the input list unchanged.
   agent: dietary_filtering_agent
   expected_output: >
     A comma-separated list of ingredients from the input that comply with the dietary restriction.
-    Preserve the order and formatting of the input. Return the input list unchanged if the restriction is empty.
+    Preserve the order and formatting of the input. Return the input list unchanged if the restriction is "none".
 
 nutrient_analysis_task:
   description: >
@@ -23,7 +23,7 @@ nutrient_analysis_task:
   agent: nutrient_analysis_agent
   expected_output: >
     A structured nutrient analysis of the meal including: the identified dish name and portion size,
-    per-item calorie estimates for each identified food, macronutrient totals (protein, carbohydrates, fats),
+    a per-portion calorie estimate for the meal, macronutrient totals (protein, carbohydrates, fats),
     3-5 key vitamins with %DV, 3-5 key minerals with amounts, and a 2-3 sentence health evaluation.
 
 recipe_suggestion_task:
