@@ -48,8 +48,9 @@ def _safe_arithmetic(expression: str) -> float:
     """AST-based arithmetic evaluator.
 
     Only Constant, BinOp, and UnaryOp with add/sub/mul/div are allowed.
-    Rejects everything else (calls, names, attribute access, comprehensions)
-    so runaway expressions and code injection are structurally impossible.
+    Rejects everything else (calls, names, attribute access, comprehensions),
+    so code injection is structurally impossible. Callers should still enforce
+    input-size/depth limits to avoid expensive or deeply nested expressions.
     """
     tree = ast.parse(expression, mode="eval")
 

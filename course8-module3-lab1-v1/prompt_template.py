@@ -52,8 +52,10 @@ SCENARIOS = [
     ProjectScenario(
         project_name="Smart Inventory Optimization",
         business_problem="Reduce inventory costs while maintaining 95% product availability",
-        data_description="2 years of sales data, supplier lead times, seasonal patterns," \
-        "500K records",
+        data_description=(
+            "2 years of sales data, supplier lead times, seasonal patterns, "
+            "500K records"
+        ),
         timeline="3 months development, 1 month testing",
         success_metrics="15% cost reduction, maintain 95% availability, <2% forecast error",
     ),

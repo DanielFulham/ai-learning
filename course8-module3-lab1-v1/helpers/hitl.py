@@ -1,5 +1,6 @@
 """Human-in-the-loop approval handlers for AskPermissionRequirement."""
 
+import asyncio
 from typing import Any
 
 from beeai_framework.tools import Tool
@@ -13,5 +14,5 @@ async def stdin_approval_handler(tool: Tool, tool_input: dict[str, Any]) -> bool
     """
     print(f"\n[HITL] Agent requests: {tool.name}")
     print(f"[HITL] Arguments: {tool_input}")
-    response = input("[HITL] Approve? [yes/no]: ").strip().lower()
+    response = (await asyncio.to_thread(input, "[HITL] Approve? [yes/no]: ")).strip().lower()
     return response in {"yes", "y"}
