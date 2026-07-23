@@ -1,7 +1,7 @@
 """Prompt template + ChatModel via BeeAI's own template module.
 
-Modernised from the lab's hand-rolled SimplePromptTemplate class,
-which reimplements (badly) what beeai_framework.template provides.
+Uses beeai_framework.template.PromptTemplate with a Pydantic schema,
+in place of the lab's hand-rolled template class.
 """
 
 import asyncio

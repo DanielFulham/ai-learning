@@ -1,14 +1,13 @@
 """Custom tool via Tool subclass - the low-level authoring path.
 
-Framework's preferred path for simple tools is @tool decorator (see
-frameworks own docs). Tool subclass shape is the escape hatch when you
-need lifecycle hooks (emitter, options, schema customisation).
+The framework's preferred path for simple tools is the @tool decorator;
+the Tool subclass shape is the escape hatch when you need lifecycle hooks
+(emitter, options, schema customisation).
 
-The lab's original safe_calculate used eval with a character-set gate,
-which is not a security control - runaway expressions (10*10*10*...)
-and deep parenthesisation cause DoS despite passing the char check.
-Replaced with ast-based evaluator that only permits literal arithmetic
-node types.
+Arithmetic is evaluated with an AST walker that only permits literal
+arithmetic node types. A character-set gate over eval is not a security
+control - runaway expressions (10*10*10*...) and deep parenthesisation
+cause DoS despite passing the character check.
 """
 
 import ast

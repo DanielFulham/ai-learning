@@ -1,11 +1,9 @@
 """RequirementAgent with full requirement scheduling: think-first, no
 consecutive thoughts, Wikipedia mandatory but only after thinking.
 
-Reconstructs a ReAct-like pattern at the scheduling layer. Cross-refs
-F-L38-arch-17: last run's forced-Think agent skipped Wikipedia entirely.
-This cell tests whether min_invocations=1 forces the tool despite the
-model wanting to skip - the empirical test for BeeAI's 'predictable
-controlled behavior' framing.
+min_invocations=1 on WikipediaTool forces the tool even when the model
+would otherwise skip it; only_after=[ThinkTool] gates it behind a
+reasoning step.
 """
 
 import asyncio
@@ -23,7 +21,7 @@ from beeai_framework.tools.search.wikipedia import WikipediaTool
 from beeai_framework.tools.think import ThinkTool
 from dotenv import load_dotenv
 
-from helpers.metrics import print_run_metrics
+from helpers.metrics import print_preview, print_run_metrics
 
 if not load_dotenv():
     raise RuntimeError(".env not found - check cwd or run from lab root")
@@ -76,10 +74,7 @@ async def controlled_execution_example() -> None:
     result = await agent.run(ANALYSIS_QUERY)
 
     print_run_metrics(result.state)
-
-    analysis = result.output[-1].text
-    preview = analysis[:200] + "..." if len(analysis) > 200 else analysis
-    print(f"\nAnalysis preview:\n{preview}")
+    print_preview(result.output[-1].text)
 
 
 if __name__ == "__main__":

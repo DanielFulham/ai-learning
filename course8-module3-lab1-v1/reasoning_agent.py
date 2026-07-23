@@ -20,7 +20,7 @@ from beeai_framework.tools.search.wikipedia import WikipediaTool
 from beeai_framework.tools.think import ThinkTool
 from dotenv import load_dotenv
 
-from helpers.metrics import print_run_metrics
+from helpers.metrics import print_preview, print_run_metrics
 
 if not load_dotenv():
     raise RuntimeError(".env not found - check cwd or run from lab root")
@@ -62,10 +62,7 @@ async def reasoning_enhanced_agent_example() -> None:
     result = await agent.run(ANALYSIS_QUERY)
 
     print_run_metrics(result.state)
-
-    analysis = result.output[-1].text
-    preview = analysis[:200] + "..." if len(analysis) > 200 else analysis
-    print(f"\nAnalysis preview:\n{preview}")
+    print_preview(result.output[-1].text)
 
 
 if __name__ == "__main__":

@@ -1,13 +1,10 @@
-"""RequirementAgent as a scheduling-layer ReAct pattern (production shape).
+"""RequirementAgent as a scheduling-layer ReAct pattern.
 
 force_at_step=1 + force_after=Tool + consecutive_allowed=False on Think
 reconstructs Think -> Act -> Think -> Act -> ... at the scheduling layer.
-
-Departs from the lab's Section 9 config: added min_invocations=1 on
-WikipediaTool. The lab's "flexible" config degenerates on strong models
-(model reasons itself out of using tools despite Wikipedia being available -
-see F-L38-arch-17). Forcing at least one Wikipedia call makes the ReAct
-rhythm actually fire, which is what the section title claims to demonstrate.
+min_invocations=1 on WikipediaTool provides the action floor: without a
+forced tool call, force_after=Tool has nothing to alternate against and
+the rhythm never starts.
 """
 
 import asyncio
@@ -25,7 +22,7 @@ from beeai_framework.tools.search.wikipedia import WikipediaTool
 from beeai_framework.tools.think import ThinkTool
 from dotenv import load_dotenv
 
-from helpers.metrics import print_run_metrics
+from helpers.metrics import print_preview, print_run_metrics
 
 if not load_dotenv():
     raise RuntimeError(".env not found - check cwd or run from lab root")
@@ -72,16 +69,13 @@ async def react_agent_example() -> None:
                 min_invocations=1,
                 max_invocations=2,
             ),
-        ]
+        ],
     )
 
     result = await agent.run(ANALYSIS_QUERY)
 
     print_run_metrics(result.state)
-
-    analysis = result.output[-1].text
-    preview = analysis[:200] + "..." if len(analysis) > 200 else analysis
-    print(f"\nAnalysis preview:\n{preview}")
+    print_preview(result.output[-1].text)
 
 
 if __name__ == "__main__":

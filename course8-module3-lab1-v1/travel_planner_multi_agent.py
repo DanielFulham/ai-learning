@@ -1,11 +1,10 @@
 """Multi-agent travel planner: coordinator + destination + weather + culture.
 
-First multi-agent shape in the session. Uses HandoffTool to wrap each
-specialist agent as a tool the coordinator can invoke. AskPermission gates
-the three handoff calls. Cross-refs L34 allow_delegation finding: CrewAI's
-delegation was invisible cost; BeeAI's handoff shows in trajectory as
-tool call, but the delegated agent's internal cost (its own iterations,
-tools, LLM calls) is nested.
+Uses HandoffTool to wrap each specialist agent as a tool the coordinator
+can invoke; AskPermissionRequirement gates the three handoff calls. A
+handoff runs the specialist to completion in a fresh instance and returns
+its output text as the tool result — the specialist's own iterations,
+tools, and LLM calls are nested inside that one coordinator-visible call.
 """
 
 import asyncio
@@ -29,7 +28,7 @@ from beeai_framework.tools.weather import OpenMeteoTool
 from dotenv import load_dotenv
 
 from helpers.hitl import stdin_approval_handler
-from helpers.metrics import print_run_metrics
+from helpers.metrics import print_preview, print_run_metrics
 
 if not load_dotenv():
     raise RuntimeError(".env not found - check cwd or run from lab root")
@@ -46,7 +45,7 @@ TRAVEL_QUERY = (
 )
 
 
-async def multi_agent_travel_planner() -> None:
+async def travel_planner_example() -> None:
     llm = ChatModel.from_name("anthropic:claude-haiku-4-5")
 
     destination_expert = RequirementAgent(
@@ -176,11 +175,8 @@ async def multi_agent_travel_planner() -> None:
     result = await travel_coordinator.run(TRAVEL_QUERY)
 
     print_run_metrics(result.state)
-
-    analysis = result.output[-1].text
-    preview = analysis[:400] + "..." if len(analysis) > 400 else analysis
-    print(f"\nTravel Plan Preview:\n{preview}")
+    print_preview(result.output[-1].text, label="Travel Plan Preview", limit=400)
 
 
 if __name__ == "__main__":
-    asyncio.run(multi_agent_travel_planner())
+    asyncio.run(travel_planner_example())

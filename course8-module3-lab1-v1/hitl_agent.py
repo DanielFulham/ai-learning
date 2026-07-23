@@ -1,14 +1,12 @@
 """RequirementAgent with AskPermissionRequirement + custom approval handler.
 
-HITL-as-security is IBM marketing framing (per session context). Real
-threat model is governance/audit. Custom handler surfaces tool arguments
-in the approval prompt rather than the framework default which shows
-tool name only.
+The custom handler surfaces tool arguments in the approval prompt, rather
+than the framework default which shows the tool name only.
 
-Note: AskPermissionRequirement's interrupt only fires when the tool
-actually invokes. min_invocations=1 on the WikipediaTool ConditionalRequirement
-below forces the invocation; without it, the model reasons Wikipedia is
-disallowed and skips it, so the approval prompt never fires (F-L38-arch-24).
+AskPermissionRequirement's interrupt only fires when the tool actually
+invokes. min_invocations=1 on the WikipediaTool ConditionalRequirement
+below forces the invocation; without it the model can skip the tool and
+the approval prompt never fires.
 """
 
 import asyncio
@@ -30,7 +28,7 @@ from beeai_framework.tools.think import ThinkTool
 from dotenv import load_dotenv
 
 from helpers.hitl import stdin_approval_handler
-from helpers.metrics import print_run_metrics
+from helpers.metrics import print_preview, print_run_metrics
 
 if not load_dotenv():
     raise RuntimeError(".env not found - check cwd or run from lab root")
@@ -54,7 +52,7 @@ ANALYSIS_QUERY = (
 )
 
 
-async def production_security_example() -> None:
+async def hitl_agent_example() -> None:
     llm = ChatModel.from_name("anthropic:claude-haiku-4-5")
 
     agent = RequirementAgent(
@@ -87,11 +85,8 @@ async def production_security_example() -> None:
     result = await agent.run(ANALYSIS_QUERY)
 
     print_run_metrics(result.state)
-
-    analysis = result.output[-1].text
-    preview = analysis[:200] + "..." if len(analysis) > 200 else analysis
-    print(f"\nAnalysis preview:\n{preview}")
+    print_preview(result.output[-1].text)
 
 
 if __name__ == "__main__":
-    asyncio.run(production_security_example())
+    asyncio.run(hitl_agent_example())

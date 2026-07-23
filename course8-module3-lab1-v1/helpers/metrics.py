@@ -21,3 +21,9 @@ def print_run_metrics(state: RequirementAgentRunState) -> None:
         print("Cache hit rate: n/a (no prompt tokens recorded)")
 
     print(f"Cost: ${state.cost.total_cost_usd:.4f}")
+
+
+def print_preview(text: str, label: str = "Analysis preview", limit: int = 200) -> None:
+    """Print a truncated preview of agent output text."""
+    preview = text[:limit] + "..." if len(text) > limit else text
+    print(f"\n{label}:\n{preview}")
