@@ -1,0 +1,9 @@
+--only-binary litellm
+
+# BeeAI at head. litellm 1.92+ is Rust-core/sdist-only on Windows;
+# 1.91.x is the pure-Python maintenance line. --only-binary makes pip
+# resolve to the newest wheel instead of dying on the 1.93 sdist.
+# See F-L38-env-3 in lab notes.
+beeai-framework[wikipedia]==0.1.81
+litellm==1.91.4
+python-dotenv==1.2.2
