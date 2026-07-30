@@ -7,7 +7,9 @@ the Tool subclass shape is the escape hatch when you need lifecycle hooks
 Arithmetic is evaluated with an AST walker that only permits literal
 arithmetic node types. A character-set gate over eval is not a security
 control - runaway expressions (10*10*10*...) and deep parenthesisation
-cause DoS despite passing the character check.
+cause DoS despite passing the character check. The AST walker prevents
+code injection but does not defend against DoS; callers should enforce
+input-size/depth limits.
 """
 
 import ast
