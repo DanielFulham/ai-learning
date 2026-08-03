@@ -20,16 +20,21 @@ def _fmt(value: float | None) -> str:
 def _cache_rate(report: UsageReport) -> str:
     """Cache-read tokens as a share of total input tokens.
 
-    Input = prompt + cache-read + cache-creation. Returns "-" when the
-    provider reports no cache fields at all, since 0% would imply caching
-    was measured and found absent rather than simply not reported.
+    Input = prompt + cache-read + cache-creation. Returns "-" only when the
+    provider reports NO cache fields (both None) — a provider that
+    explicitly reports zero gets a real 0%, since "measured and absent" and
+    "not reported" are different facts.
     """
     total = report.total
     prompt = total.prompt_tokens or 0.0
-    read = total.cache_read_input_tokens or 0.0
-    created = total.cache_creation_input_tokens or 0.0
-    if read == 0.0 and created == 0.0:
+
+    read_raw = total.cache_read_input_tokens
+    created_raw = total.cache_creation_input_tokens
+    if read_raw is None and created_raw is None:
         return "-"
+
+    read = read_raw or 0.0
+    created = created_raw or 0.0
     denominator = prompt + read + created
     if denominator == 0.0:
         return "-"

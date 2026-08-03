@@ -112,6 +112,7 @@ REVIEWER_PROMPT = (
 def _is_closed(envelope: Envelope) -> bool:
     return envelope.event_type == EV_CHANNEL_CLOSED
 
+
 class LiveTrace(BaseHubListener):
     """Print each envelope as the hub accepts it, so the run is visible."""
 

@@ -18,9 +18,15 @@ SENDER (``student.initiate_chat(recipient=tutor, ...)`` = student speaks);
 one onto the other positionally inverts the roles and still produces
 plausible output - see the first-run correction in the lab notes.
 
-``stream=`` is passed explicitly so all three turns share one conversation
-log. Without it each ``ask`` opens its own stream and ``usage()`` reports
-only the last one.
+Usage is per-stream, and this script intentionally uses TWO: the tutor
+keeps context across turns 1 and 3 via ``reply.ask(...)``, while the
+student uses its own so it reads the tutor's answer as input rather than
+inheriting it as its own prior output.
+
+One shared stream does not work. ``MemoryStream`` events carry no author
+attribution, so a second agent reading the first's output inherits it as
+its own prior turn — the student claimed authorship of the tutor's
+explanation. See F-L39-8.
 
 There is no ``summary_method`` equivalent in v1.0. Classic's
 ``reflection_with_llm`` ran an extra LLM call to summarise the exchange;
