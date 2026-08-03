@@ -1,2 +1,2 @@
-﻿ag2[anthropic]==1.0.1
+ag2[anthropic]==1.0.1
 python-dotenv==1.2.2
