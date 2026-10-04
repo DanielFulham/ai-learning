@@ -10,6 +10,8 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 load_dotenv()
 
+TRACE_RESULT_CHARS = 200
+
 
 def trace_turn(messages: list[BaseMessage]) -> None:
     """Print the tools called and tokens used since the last user message."""
@@ -24,7 +26,9 @@ def trace_turn(messages: list[BaseMessage]) -> None:
                 input_tokens += message.usage_metadata["input_tokens"]
                 output_tokens += message.usage_metadata["output_tokens"]
         elif isinstance(message, ToolMessage):
-            print(f"  tool result: {message.name} status={message.status}")
+            text = " ".join(message.text.split())
+            shown = text[:TRACE_RESULT_CHARS] + ("..." if len(text) > TRACE_RESULT_CHARS else "")
+            print(f"  tool result: {message.name} status={message.status} {shown}")
     print(f"  tokens this turn: {input_tokens} in, {output_tokens} out")
 
 

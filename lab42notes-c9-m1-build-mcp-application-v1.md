@@ -41,7 +41,7 @@ course9-module1-lab2/
 - `create_react_agent` becomes `create_agent`, with the same arguments.
 - `config` is typed `RunnableConfig`, messages are sent as role/content lists, and replies are read with `.text`. The lab's forms fail type-checking (pyright 1.1.414, Python 3.12) or can return a list of content blocks.
 - The Met server is `@cyanheads/met-museum-mcp-server@0.7.0`, pinned, in place of the unpinned `metmuseum-mcp`.
-- `trace_turn` is added (not in the lab): per turn it prints the tools called, each result's `status` and the tokens used.
+- `trace_turn` is added (not in the lab): per turn it prints the tools called, each result's `status` with the first 200 characters of its text, and the tokens used.
 
 ## Findings
 
