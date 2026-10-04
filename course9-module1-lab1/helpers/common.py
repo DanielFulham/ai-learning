@@ -18,7 +18,7 @@ DOCS_QUERY = "I want to fetch the code snippets and the documentation"
 def first_text(result: CallToolResult) -> str | None:
     # The notebook reads content[0].text unnarrowed; only TextContent has .text.
     # call_tool() raises ToolError on is_error results by default, so is_error is never
-    # True here. A backend failure returned as plain text (F-L41-8) arrives as content.
+    # True here. A backend failure returned as plain text (F-L41-7) arrives as content.
     block = result.content[0]
     return block.text if isinstance(block, TextContent) else None
 
