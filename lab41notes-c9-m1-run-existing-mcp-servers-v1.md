@@ -19,7 +19,7 @@ python stdio_transport.py      # needs Node.js (npx) and network access
 python http_transport.py       # needs network access
 ```
 
-`requirements.txt` pins `fastmcp` and `requests` (the notebook installs both unpinned). Versions in use, resolved on 4 October 2026 and then pinned:
+`requirements.txt` pins `fastmcp==4.0.10` and `requests==2.34.2`; `mcp` still floats within `>=2,<3`. Resolved on 4 October 2026:
 
 | | |
 |---|---|
@@ -28,7 +28,7 @@ python http_transport.py       # needs network access
 | `mcp` / `mcp-types` | 2.3.0 / 2.3.0 |
 | `requests` | 2.34.2 |
 | Node.js / npx | v26.5.1 / 12.0.2 |
-| Context7 (`npx -y`, unpinned) | 4.1.1 |
+| Context7 (`@upstash/context7-mcp@4.1.1`, pinned) | 4.1.1 |
 
 ## File layout
 
@@ -89,11 +89,11 @@ The HTTP preface sends a plain `GET` to ibm.com and prints what the client sent:
 
 **F-L41-5 — the tool descriptions carry rules the schema does not enforce.** `resolve-library-id` says it must be called before the documentation tool unless the caller already has an ID; each tool says not to call it more than three times per question; and `resolve-library-id` tells the caller to choose by name match, source reputation, snippet count and Benchmark Score. Each tool names the other by a display title ("Resolve Context7 Library ID", "Query Documentation"), not by its tool name. The schema enforces only that the arguments are present and typed. Both `query` arguments state that the query is sent to the Context7 API, which means the stdio server is local but its queries are not. Same shape as the Course 8 declared-versus-enforced findings, on a third-party server.
 
-**F-L41-6 — required arguments are enforced server-side; extra and empty ones are not.** Calling `resolve-library-id` without `query` was rejected: `ToolError: Input validation error: Invalid arguments for tool resolve-library-id: query: Invalid input: expected string, received undefined`. An empty string for `query` was accepted. `query-docs` declares only `libraryId` and `query`, yet the notebook's `"tokens": 5000` was accepted without error; whether it has any effect was not tested.
+**F-L41-6 — required arguments are enforced server-side; extra and empty ones are not.** Calling `resolve-library-id` without `query` was rejected: `ToolError: Input validation error: Invalid arguments for tool resolve-library-id: query: Invalid input: expected string, received undefined`. An empty string for `query` was accepted. `query-docs` declares only `libraryId` and `query`, and V1 sends only those arguments; the notebook sent `"tokens": 5000` undeclared.
 
-**F-L41-7 — a failure inside the server's backend is returned as ordinary result text.** On one run all four calls (both tools, both exercises) returned `Error searching libraries: TypeError: fetch failed` or `Error fetching library context. Please try again later. TypeError: fetch failed` as content, and `call_tool` raised nothing, while the validation failure in F-L41-6 raised `ToolError`. A caller that prints `content[0].text` presents the failure as output. The failure was transient and the next run succeeded. `call_tool` raises `ToolError` on error results by default and did not raise here, so `is_error` was not set: the failure was ordinary content.
+**F-L41-7 — a failure inside the server's backend is returned as ordinary result text; `Client.call_tool` does not raise on backend errors.** On one run all four calls (both tools, both exercises) returned `Error searching libraries: TypeError: fetch failed` or `Error fetching library context. Please try again later. TypeError: fetch failed` as content, and `call_tool` raised nothing, while the validation failure in F-L41-6 raised `ToolError`. The `Client` is configured with `raise_on_error=True` (the default), so `is_error=True` would raise; the backend failures returned with `is_error=False` and printed as ordinary text. A caller checking only for exceptions presents the failure as output. The failure was transient and the next run succeeded.
 
-**F-L41-8 — the library results are neither stable between identical calls nor ordered by the score the notebook tells you to use.** With identical arguments the returned set, order and scores changed from run to run: `/websites/gofastmcp` scored 84.88 in some runs and 84.81 in others; `/stevens507/fastmcp` and `/llmstxt/gofastmcp_llms-full_txt` (the notebook's pick) appeared in some runs and not others, always last by score (52.6) when present; `/websites/gofastmcp_v2_getting-started` appeared once; and two back-to-back calls had unequal `content`. Lists were not in Benchmark Score order (a 73 listed above a 79.17). `query=""` returned a different set (`/prefecthq/fastmcp-ts` and `/llmstxt/gofastmcp_llms_txt` in, two entries out), which cannot be attributed to the empty query given that identical calls also vary. For scikit-learn, the notebook's hardcoded ID `/scikit-learn/scikit-learn` was listed first with a score of 74.8, below `/websites/scikit-learn_stable` (86.4) and `/websites/scikit-learn_dev` (78.96), so the notebook's own rule of taking the highest score would not select it.
+**F-L41-8 — the library results are neither stable between identical calls nor ordered by the score the notebook tells you to use.** With identical arguments the returned set, order and scores changed from run to run: `/websites/gofastmcp` scored 84.88 in some runs and 84.81 in others; `/stevens507/fastmcp` and `/llmstxt/gofastmcp_llms-full_txt` (the notebook's pick) appeared in some runs and not others, always last by score (52.6) when present; `/websites/gofastmcp_v2_getting-started` appeared once; and two back-to-back calls had unequal `content`. Lists were not in Benchmark Score order (a 73 listed above a 79.17). `query=""` returned a different set (`/prefecthq/fastmcp-ts` and `/llmstxt/gofastmcp_llms_txt` in, two entries out), which cannot be attributed to the empty query given that identical calls also vary. For scikit-learn, the notebook hardcodes `/scikit-learn/scikit-learn` and adds a comment in the V1 code; this ID was listed first with a score of 74.8, below `/websites/scikit-learn_stable` (86.4) and `/websites/scikit-learn_dev` (78.96), so the notebook's own rule of taking the highest score would not select it. The resolver result is neither connected to nor overridden by the hardcoded ID, so the claimed "resolve then query" flow is not actually wired.
 
 **F-L41-9 — `query-docs` returned contributor documentation, not usage examples, for both of the lab's queries.** For the notebook's `fastmcp` ID the snippets covered generating API reference docs (`just api-ref-all`), the contributing guide and a documentation index; for scikit-learn they covered installing the docs build dependencies and `make html`. Each snippet has a title, a `Source:` URL, text and code, separated by rules. The tool's schema asks for a query "scoped to a single concept" and lists vague queries as bad; both lab queries ask for "the documentation" in general, which is what came back.
 
@@ -111,12 +111,11 @@ The HTTP preface sends a plain `GET` to ibm.com and prints what the client sent:
 ## What this doesn't cover
 
 - **A model in the loop.** Whether an LLM host would follow the ordering and three-call rules, or choose a library by the published score, was not tested.
-- **The `tokens` argument.** Accepted without error; whether it changes the output was not tested.
-- **`is_error` on the backend-failure result** (F-L41-7).
+- **`is_error` on backend-failure results** (F-L41-7). `Client.call_tool` defaults to `raise_on_error=True`; backend failures return `is_error=False` and print as ordinary text.
 - **Whether `StdioTransport` reuses one Context7 subprocess** across the steps' separate connections. Not measured.
 - **`mode="legacy"` against Context7.** Only the default `mode="auto"` was used.
-- **Pinning `mcp`.** `fastmcp`, `requests` and the `npx` package are pinned; `mcp` is not and floats within `>=2,<3`. `r.history` was not read for the cookie question.
-- **Security.** Context7's advisories and data handling were not reviewed.
+- **Resolving then querying.** The resolver output is not used by the hardcoded library ID; V2 should wire that flow.
+- **Security.** Context7's advisories, cookie handling in redirects (F-L41-7 context), and data handling were not reviewed.
 - **One machine, one Node version.** The Windows `npx` result is from a single environment.
 
 ---
