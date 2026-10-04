@@ -30,10 +30,6 @@ python main.py        # needs Node.js (npx), network access and a .env with ANTH
 ```
 course9-module1-lab2/
 ├── main.py                    # the agent and CLI loop
-├── probe_met_tools.py         # lab's Met server: tool schemas (no model)
-├── probe_met_search.py        # lab's Met server: one search call (no model)
-├── probe_met_working.py       # lab's Met server: the tools that don't use search (no model)
-├── probe_cyanheads_tools.py   # replacement Met server: tool schemas (no model)
 ├── pyproject.toml
 └── requirements.txt
 ```
@@ -51,7 +47,7 @@ course9-module1-lab2/
 
 **The lab's pinned install fails.** On Linux with Python 3.12 the pins install, resolve `mcp` 2.3.0, and the first import fails (`streamablehttp_client` was renamed in `mcp` 2.x). On Windows with Python 3.14, `langchain-ibm==0.3.18` cannot install because its releases from 0.3.10 declare `Requires-Python <3.14`. `langchain-mcp-adapters` caps `mcp<2` only from 0.3.2 (6 Aug 2026); `langchain` 1.4.0 adds `langchain.mcp` as a replacement, which needs a separate environment.
 
-**The lab's Met server cannot search.** The Met retired `/public/collection/v1/search` on 2026-10-01: it now returns HTTP 410 and names `/v1.1/search`, which returned 200. `metmuseum-mcp` 1.0.0 (the latest npm release, February 2026) still failed with `status='error'` and "rejected the request (HTTP 410)". Its `list-departments` and `get-museum-object` tools still worked. `@cyanheads/met-museum-mcp-server@0.7.0` searches on `/v1.1`; asked for a van Gogh painting, the agent answered *The Potato Peeler*, 1885, object 438722, and the Met's own record matched every field checked except a "CC0 image" claim the record does not show.
+**The lab's Met server cannot search.** The Met retired `/public/collection/v1/search` on 2026-10-01: it now returns HTTP 410 and names `/v1.1/search`, which returned 200. Check with `curl.exe -s -o NUL -w "%{http_code}" "https://collectionapi.metmuseum.org/public/collection/v1/search?q=sunflowers"` (use `v1.1` for the 200). The tool-level results below came from calling the server's tools directly with no model, in throwaway scripts that are not kept here. `metmuseum-mcp` 1.0.0 (the latest npm release, February 2026) still failed with `status='error'` and "rejected the request (HTTP 410)". Its `list-departments` and `get-museum-object` tools still worked. `@cyanheads/met-museum-mcp-server@0.7.0` searches on `/v1.1`; asked for a van Gogh painting, the agent answered *The Potato Peeler*, 1885, object 438722, and the Met's own record matched every field checked except a "CC0 image" claim the record does not show.
 
 **The failure was reported as temporary.** With the lab's server the agent said it hit "technical difficulties" and offered to retry; a 410 from a retired endpoint is permanent. What the model actually received was not printed, so this is the agent's summary.
 
