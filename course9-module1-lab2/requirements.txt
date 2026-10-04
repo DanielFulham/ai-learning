@@ -1,0 +1,12 @@
+# MCP client (caps mcp below 2.0 itself)
+langchain-mcp-adapters==0.3.2
+
+# Agent runtime: create_agent is in langchain, InMemorySaver ships with langgraph
+langchain==1.4.3
+langgraph==1.2.12
+
+# Model
+langchain-anthropic==1.7.5
+
+# Environment
+python-dotenv==1.2.4
