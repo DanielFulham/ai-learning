@@ -19,7 +19,7 @@ python stdio_transport.py      # needs Node.js (npx) and network access
 python http_transport.py       # needs network access
 ```
 
-`requirements.txt` lists `fastmcp` and `requests`, unpinned, as the notebook installs them. Resolved on 4 October 2026:
+`requirements.txt` pins `fastmcp` and `requests` (the notebook installs both unpinned). Versions in use, resolved on 4 October 2026 and then pinned:
 
 | | |
 |---|---|
@@ -50,7 +50,10 @@ course9-module1-lab1/
 - Tool schemas are read as `.input_schema`, not `.inputSchema` (F-L41-3), and `content[0]` is narrowed with `isinstance` before `.text` is read (F-L41-4).
 - Docs output is truncated to 1,000 characters on both transports; the notebook uses 1,000 for stdio and 500 for HTTP.
 - `requests.get` has `timeout=10`; the notebook has none.
-- `tokens: 5000` is still passed to `query-docs` although the tool does not declare it (F-L41-6).
+- `tokens: 5000` is no longer passed to `query-docs`, since the tool does not declare it (F-L41-6).
+- `fastmcp`, `requests` and the `npx` package (`@upstash/context7-mcp@4.1.1`) are pinned; the notebook installs all three unpinned.
+- `Cookie`, `Authorization` and `Proxy-Authorization` values are redacted when the HTTP preface prints request headers.
+- The library ID passed to `query-docs` is the notebook's fixed value, as in the notebook; it is not parsed from the `resolve-library-id` output.
 
 ---
 
@@ -88,7 +91,7 @@ The HTTP preface sends a plain `GET` to ibm.com and prints what the client sent:
 
 **F-L41-6 — required arguments are enforced server-side; extra and empty ones are not.** Calling `resolve-library-id` without `query` was rejected: `ToolError: Input validation error: Invalid arguments for tool resolve-library-id: query: Invalid input: expected string, received undefined`. An empty string for `query` was accepted. `query-docs` declares only `libraryId` and `query`, yet the notebook's `"tokens": 5000` was accepted without error; whether it has any effect was not tested.
 
-**F-L41-7 — a failure inside the server's backend is returned as ordinary result text.** On one run all four calls (both tools, both exercises) returned `Error searching libraries: TypeError: fetch failed` or `Error fetching library context. Please try again later. TypeError: fetch failed` as content, and `call_tool` raised nothing, while the validation failure in F-L41-6 raised `ToolError`. A caller that prints `content[0].text` presents the failure as output. The failure was transient and the next run succeeded. Whether `is_error` was set on those results was not checked.
+**F-L41-7 — a failure inside the server's backend is returned as ordinary result text.** On one run all four calls (both tools, both exercises) returned `Error searching libraries: TypeError: fetch failed` or `Error fetching library context. Please try again later. TypeError: fetch failed` as content, and `call_tool` raised nothing, while the validation failure in F-L41-6 raised `ToolError`. A caller that prints `content[0].text` presents the failure as output. The failure was transient and the next run succeeded. `call_tool` raises `ToolError` on error results by default and did not raise here, so `is_error` was not set: the failure was ordinary content.
 
 **F-L41-8 — the library results are neither stable between identical calls nor ordered by the score the notebook tells you to use.** With identical arguments the returned set, order and scores changed from run to run: `/websites/gofastmcp` scored 84.88 in some runs and 84.81 in others; `/stevens507/fastmcp` and `/llmstxt/gofastmcp_llms-full_txt` (the notebook's pick) appeared in some runs and not others, always last by score (52.6) when present; `/websites/gofastmcp_v2_getting-started` appeared once; and two back-to-back calls had unequal `content`. Lists were not in Benchmark Score order (a 73 listed above a 79.17). `query=""` returned a different set (`/prefecthq/fastmcp-ts` and `/llmstxt/gofastmcp_llms_txt` in, two entries out), which cannot be attributed to the empty query given that identical calls also vary. For scikit-learn, the notebook's hardcoded ID `/scikit-learn/scikit-learn` was listed first with a score of 74.8, below `/websites/scikit-learn_stable` (86.4) and `/websites/scikit-learn_dev` (78.96), so the notebook's own rule of taking the highest score would not select it.
 
@@ -112,7 +115,7 @@ The HTTP preface sends a plain `GET` to ibm.com and prints what the client sent:
 - **`is_error` on the backend-failure result** (F-L41-7).
 - **Whether `StdioTransport` reuses one Context7 subprocess** across the steps' separate connections. Not measured.
 - **`mode="legacy"` against Context7.** Only the default `mode="auto"` was used.
-- **Pinning.** V1 runs unpinned. Pinning `fastmcp`, `mcp` and the `npx` package version, and reading `r.history` for the cookie question, are the obvious next steps.
+- **Pinning `mcp`.** `fastmcp`, `requests` and the `npx` package are pinned; `mcp` is not and floats within `>=2,<3`. `r.history` was not read for the cookie question.
 - **Security.** Context7's advisories and data handling were not reviewed.
 - **One machine, one Node version.** The Windows `npx` result is from a single environment.
 

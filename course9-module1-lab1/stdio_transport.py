@@ -7,8 +7,10 @@ from fastmcp.client.transports import StdioTransport
 
 from helpers.common import run_lab_steps, show_docs, show_library_id
 
+CONTEXT7_VERSION = "4.1.1"
+
 STDIO_COMMAND = "npx"
-STDIO_ARGS = ["-y", "@upstash/context7-mcp"]
+STDIO_ARGS = ["-y", f"@upstash/context7-mcp@{CONTEXT7_VERSION}"]
 
 
 def build_stdio_client() -> Client:

@@ -10,13 +10,15 @@ from mcp.types import TextContent, Tool
 
 LIBRARY_NAME = "fastmcp"
 RESOLVE_QUERY = "I want to create a new MCP server using the fastmcp Python framework"
+# Fixed by the notebook; it is not parsed from the resolve-library-id output.
 LIBRARY_ID = "/llmstxt/gofastmcp_llms-full_txt"
 DOCS_QUERY = "I want to fetch the code snippets and the documentation"
-DOCS_TOKENS = 5000
 
 
 def first_text(result: CallToolResult) -> str | None:
     # The notebook reads content[0].text unnarrowed; only TextContent has .text.
+    # call_tool() raises ToolError on is_error results by default, so is_error is never
+    # True here. A backend failure returned as plain text (F-L41-8) arrives as content.
     block = result.content[0]
     return block.text if isinstance(block, TextContent) else None
 
@@ -64,14 +66,13 @@ async def show_docs(
     mcp_client: Client,
     library_id: str = LIBRARY_ID,
     query: str = DOCS_QUERY,
-    tokens: int = DOCS_TOKENS,
     max_chars: int = 1000,
 ) -> None:
     async with mcp_client as client:
-        # Use resolved ID to fetch documentation
+        # Fetch documentation for the library ID
         docs = await client.call_tool(
             "query-docs",
-            {"libraryId": library_id, "query": query, "tokens": tokens},
+            {"libraryId": library_id, "query": query},
         )
 
     text = first_text(docs)

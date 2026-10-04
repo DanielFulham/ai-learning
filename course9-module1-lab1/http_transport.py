@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import Mapping
 
 import requests
 from fastmcp import Client
@@ -8,13 +9,21 @@ from helpers.common import run_lab_steps
 
 HTTP_URL = "https://mcp.context7.com/mcp"
 PREFACE_URL = "https://www.ibm.com/"
+SENSITIVE_HEADERS = {"cookie", "authorization", "proxy-authorization"}
+
+
+def redact(headers: Mapping[str, str | bytes]) -> dict[str, str | bytes]:
+    return {
+        k: "<redacted>" if k.lower() in SENSITIVE_HEADERS else v
+        for k, v in headers.items()
+    }
 
 
 def http_preface() -> None:
     r = requests.get(PREFACE_URL, timeout=10)
 
     print(r.status_code)
-    print(r.request.headers)
+    print(redact(r.request.headers))
     print("request body:", r.request.body)
 
 
