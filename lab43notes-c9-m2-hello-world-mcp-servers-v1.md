@@ -38,7 +38,7 @@ python agent_demo.py http
 python agent_demo.py multi             # stdio and HTTP servers together; the tool is prefixed, e.g. stdio-client_add
 ```
 
-Tests (58, no key and no network): `pytest`
+Tests (58, no key and no external network; the HTTP-host tests use loopback): `pytest`
 
 The `http` and `multi` runs print uvicorn's startup and shutdown lines around the results; the in-process server stops cleanly (F-L43-8).
 
