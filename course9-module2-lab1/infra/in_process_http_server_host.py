@@ -3,6 +3,7 @@ import socket
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import uvicorn
 from fastmcp import FastMCP
 
 
@@ -24,11 +25,15 @@ class InProcessHttpServerHost:
     async def serve(self, server: FastMCP) -> AsyncIterator[None]:
         if self.is_port_in_use():
             raise RuntimeError(f"Port {self._port} is already in use; change PORT and rerun")
-        server_task = asyncio.create_task(server.run_http_async(port=self._port, show_banner=False))
+        config = uvicorn.Config(server.http_app(), host="127.0.0.1", port=self._port)
+        uvicorn_server = uvicorn.Server(config)
+        server_task = asyncio.create_task(uvicorn_server.serve())
         try:
-            while not self.is_port_in_use():  # True once the server has bound the port
-                await asyncio.sleep(0.1)
+            while not uvicorn_server.started:
+                if server_task.done():
+                    raise RuntimeError(f"HTTP server on port {self._port} failed to start")
+                await asyncio.sleep(0.05)
             yield
         finally:
-            server_task.cancel()
+            uvicorn_server.should_exit = True  # graceful stop, so lifespan shutdown completes
             await asyncio.gather(server_task, return_exceptions=True)
