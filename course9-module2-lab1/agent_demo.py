@@ -35,10 +35,11 @@ PROMPTS: dict[Transport, str] = {
 def print_reply(reply: AgentReply) -> None:
     """Print each turn of the conversation, naming any tools the AI called."""
     for turn in reply.turns:
+        label = turn.role.upper()
+        if turn.text or not turn.tool_names:
+            print(f"[{label}] {turn.text}")
         if turn.tool_names:
-            print(f"[{turn.role.upper()}] tool call: {', '.join(turn.tool_names)}")
-        else:
-            print(f"[{turn.role.upper()}] {turn.text}")
+            print(f"[{label}] tool call: {', '.join(turn.tool_names)}")
 
 
 async def run(transport: Transport) -> None:
