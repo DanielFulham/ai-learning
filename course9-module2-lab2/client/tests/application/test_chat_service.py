@@ -56,6 +56,15 @@ def test_tools_are_offered_to_the_model() -> None:
     assert [t.name for t in offered] == ["TEST_TOOL"]
 
 
+def test_without_tools_the_model_is_offered_none() -> None:
+    model, _ = _make_model(ModelReply("TEST_ANSWER"))
+    session = _make_session()
+    service, _ = _make_service(model, session)
+    assert asyncio.run(service.process_query("TEST_QUERY", use_tools=False)) == "TEST_ANSWER"
+    session.list_tools.assert_not_called()
+    assert list(model.complete.call_args.args[1]) == []
+
+
 def test_tool_call_is_run_and_result_sent_back() -> None:
     call = _make_call()
     model, seen = _make_model(ModelReply("TEST_THINKING", (call,)), ModelReply("TEST_FINAL"))

@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from anthropic import AsyncAnthropic
+from anthropic import AsyncAnthropic, omit
 from anthropic.types import (
     MessageParam,
     TextBlockParam,
@@ -16,7 +16,8 @@ from interfaces.chat_model_interface import ChatModelInterface
 class AnthropicChatModel(ChatModelInterface):
     """Chat model backed by the Anthropic Messages API.
 
-    Requires `ANTHROPIC_API_KEY` in the environment unless a client is passed in.
+    Needs `ANTHROPIC_API_KEY` in the environment when a request is made, unless a client
+    is passed in. Building the object does not need it.
     """
 
     def __init__(
@@ -31,7 +32,7 @@ class AnthropicChatModel(ChatModelInterface):
             model=self._model_id,
             max_tokens=self._max_tokens,
             messages=[_to_message_param(m) for m in messages],
-            tools=[_to_tool_param(t) for t in tools],
+            tools=[_to_tool_param(t) for t in tools] if tools else omit,
         )
 
         texts: list[str] = []

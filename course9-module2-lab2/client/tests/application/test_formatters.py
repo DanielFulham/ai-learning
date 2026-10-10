@@ -6,6 +6,10 @@ def test_progress_with_total_shows_percentage() -> None:
     assert format_progress(5, 20, "TEST_MSG") == "Progress: 25.0% - TEST_MSG"
 
 
+def test_progress_with_zero_total_does_not_divide() -> None:
+    assert format_progress(0, 0, "Write complete") == "Progress: 0 - Write complete"
+
+
 def test_progress_without_total_shows_raw_value() -> None:
     assert format_progress(5, None, None) == "Progress: 5 - "
 

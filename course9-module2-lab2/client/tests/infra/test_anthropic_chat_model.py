@@ -2,7 +2,7 @@ import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
-from anthropic import AsyncAnthropic
+from anthropic import AsyncAnthropic, omit
 
 from domain.conversation import Message, ModelReply, ToolCall, ToolResult, ToolSpec
 from infra.anthropic_chat_model import AnthropicChatModel
@@ -39,6 +39,12 @@ def test_sends_model_limits_tools_and_messages() -> None:
     assert kwargs["tools"] == [
         {"name": "TEST_TOOL", "description": "TEST_DESC", "input_schema": {"type": "object"}}
     ]
+
+
+def test_no_tools_means_the_tools_argument_is_left_out() -> None:
+    model, create = _make_model("end_turn", _text("hi"))
+    asyncio.run(model.complete([Message(role="user", text="q")], []))
+    assert create.call_args.kwargs["tools"] is omit
 
 
 def test_text_blocks_are_joined() -> None:

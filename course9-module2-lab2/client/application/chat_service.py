@@ -18,9 +18,12 @@ class ChatService:
         self._session = session
         self._user_input = user_input
 
-    async def process_query(self, query: str) -> str:
-        """Ask the model, run any tools it requests, and repeat until it gives a final answer."""
-        tools = [to_tool_spec(raw) for raw in await self._session.list_tools()]
+    async def process_query(self, query: str, use_tools: bool = True) -> str:
+        """Ask the model, run any tools it requests, and repeat until it gives a final answer.
+
+        With `use_tools=False` the model is offered no tools, so it can only answer in text.
+        """
+        tools = [to_tool_spec(raw) for raw in await self._session.list_tools()] if use_tools else []
         messages = [Message(role="user", text=query)]
 
         reply = await self._chat_model.complete(messages, tools)

@@ -49,9 +49,9 @@ class ClientService:
                 self._user_input.show("Exiting client...")
                 return
             if choice == "1":
-                await self._run_prompt("documentation_generator")
+                await self._run_prompt("documentation_generator", use_tools=True)
             elif choice == "2":
-                await self._run_prompt("code_review")
+                await self._run_prompt("code_review", use_tools=False)
             elif choice == "3":
                 await self._read_file()
             elif choice == "4":
@@ -75,7 +75,7 @@ class ClientService:
             except Exception as e:
                 self._user_input.show(f"Error processing query: {e}")
 
-    async def _run_prompt(self, prompt_name: str) -> None:
+    async def _run_prompt(self, prompt_name: str, use_tools: bool) -> None:
         try:
             prompts = [to_prompt_spec(raw) for raw in await self._session.list_prompts()]
             spec = next((p for p in prompts if p.name == prompt_name), None)
@@ -94,7 +94,7 @@ class ClientService:
                     arguments[arg.name] = answer
 
             prompt_text = await self._session.get_prompt_text(prompt_name, arguments)
-            self._user_input.show(await self._chat.process_query(prompt_text))
+            self._user_input.show(await self._chat.process_query(prompt_text, use_tools=use_tools))
         except Exception as e:
             self._user_input.show(f"Error: {type(e).__name__}: {e}\n")
 

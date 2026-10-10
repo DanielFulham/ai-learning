@@ -80,13 +80,13 @@ def test_read_dir_shows_a_listing() -> None:
     assert any("a.txt" in line for line in shown)
 
 
-def test_review_prompt_asks_for_arguments_and_sends_the_prompt_to_the_model() -> None:
+def test_review_prompt_asks_for_arguments_and_gives_the_model_no_tools() -> None:
     session = _make_session()
     session.get_prompt_text.return_value = "TEST_PROMPT_TEXT"
     chat = _make_chat()
     shown = _run(session, chat, "2", "m.py", "q")
     session.get_prompt_text.assert_awaited_once_with("code_review", {"file_path": "m.py"})
-    chat.process_query.assert_awaited_once_with("TEST_PROMPT_TEXT")
+    chat.process_query.assert_awaited_once_with("TEST_PROMPT_TEXT", use_tools=False)
     assert "TEST_ANSWER" in shown
 
 
@@ -100,8 +100,10 @@ def test_prompt_without_a_required_argument_is_not_run() -> None:
 def test_documentation_prompt_takes_no_arguments_here() -> None:
     session = _make_session()
     session.get_prompt_text.return_value = "TEST_PROMPT_TEXT"
-    _run(session, _make_chat(), "1", "q")
+    chat = _make_chat()
+    _run(session, chat, "1", "q")
     session.get_prompt_text.assert_awaited_once_with("documentation_generator", {})
+    chat.process_query.assert_awaited_once_with("TEST_PROMPT_TEXT", use_tools=True)
 
 
 def test_missing_prompt_is_reported() -> None:

@@ -2,7 +2,7 @@
 
 > Code: [`course9-module2-lab2/`](course9-module2-lab2/)
 
-This is a port of IBM Skills Network's "Build an Enhanced MCP Server" lab (the lab's template repository is not included here) on Python 3.14 and Windows. I did the lab first from its own files, then rebuilt it as two separate onion-layered apps. 94 tests pass without an API key or an external network: 39 on the server and 55 on the client, with one more server test skipped on my machine.
+This is a port of IBM Skills Network's "Build an Enhanced MCP Server" lab (the lab's template repository is not included here) on Python 3.14 and Windows. I did the lab first from its own files, then rebuilt it as two separate onion-layered apps. 97 tests pass without an API key or an external network: 39 on the server and 58 on the client, with one more server test skipped on my machine.
 
 ## What the lab builds
 
@@ -117,6 +117,7 @@ course9-module2-lab2/
 - `documentation_generator` checks `isinstance(result, AcceptedElicitation)` instead of reading `result.data` unconditionally. A decline or cancel raises an error that names the action (F-L44-5).
 - The error behaviour is kept as the lab has it: `write_file` re-raises and `delete_file` returns text (F-L44-4). Both are tested.
 - The client uses `AsyncAnthropic` instead of the synchronous client inside async code, and `max_tokens` is 8192 (F-L44-6). It prints a warning when a reply ends at `max_tokens`, and a tool call in such a reply is not run.
+- The code-review option (2) offers the model no tools. The server has no read tool and the prompt already contains the file, so a review cannot write or delete (F-L44-7). The documentation option (1) and the conversation (5) still offer `write_file` and `delete_file`.
 - The elicitation, progress and notification handlers are plain callables passed into the session. The session starts the server through an explicit `StdioTransport` using the venv's interpreter, so launching `.js` and `.ts` servers, which the lab's check allows, is dropped.
 - Removed: the server's `print("Starting File Operations Server...")` (on stdio, stdout carries the protocol; in the lab run I did not see the line in the client and did not find out why), the client's `print(first.text)` and `print(prompt_obj)` leftovers, and unused imports. The lab client's Pylance errors and Ruff F401 hits (untyped `messages` and `tools`, `.text` on a union of content blocks) are fixed with annotations and `isinstance` narrowing, without `cast` or `# type: ignore`.
 - Added, not in the lab: an `http` mode for the server and a URL argument for the client.
@@ -136,11 +137,13 @@ course9-module2-lab2/
 
 **F-L44-6 - a cut-off tool call ended the lab's loop with no output.** With `max_tokens=4096`, a documentation request ended with `stop_reason` `max_tokens` while the model was writing the `content` argument of `write_file`. The lab's loop continues only on `tool_use`, so it exited and printed nothing. With 8192 the same request ran: a 14,892-character file, eleven progress notifications. That the content exceeded 4096 tokens is an inference, since I did not count tokens. The port warns on `max_tokens` and does not run a tool call in that reply. That is tested against a fake model and was not forced against the real API.
 
-**F-L44-7 - a review prompt was once followed by an unrequested file write.** In the lab run, the review prompt, which asks only for an evaluation, was followed by the model calling `write_file` to create `CODE_REVIEW.md`. In the port run, the same menu option on a one-line text file returned a review as text and wrote nothing; the workspace held only the two files from earlier steps. One run each, one model, different files. It shows the write tool being within reach of a review, not how often it happens.
+**F-L44-7 - a review prompt was once followed by an unrequested file write.** In the lab run, the review prompt, which asks only for an evaluation, was followed by the model calling `write_file` to create `CODE_REVIEW.md`. In the port run, the same menu option on a one-line text file returned a review as text and wrote nothing; the workspace held only the two files from earlier steps. One run each, one model, different files. It shows the write tool being within reach of a review, not how often it happens. In the port, option 2 now gives the model no tools, so this cannot happen there; options 1 and 5 still offer both.
 
 **F-L44-8 - the lab's logging claim is wrong as written.** The lab says its message handler prints the server's logs. It prints only the notification method names (`Received: notifications/message`, `Received: notifications/progress`). The log text itself appears through FastMCP's default handler (`INFO Received INFO from server: ...`). The port keeps this handler behaviour, including one `Received: notifications/progress` line after every progress update.
 
 **F-L44-9 - the lab against the current protocol revision.** The lab and its video present `ctx.elicit` as real-time two-way interaction and `ctx.info` and `ctx.error` as logging. The [2026-07-28 changelog](https://modelcontextprotocol.io/specification/2026-07-28/changelog) says Multi Round-Trip Requests replace server-initiated requests such as `elicitation/create`, and that Roots, Sampling and Logging are deprecated but stay functional for at least twelve months. It also says `notifications/progress` keeps flowing on the originating request's response stream. All of the lab's behaviour ran on `mcp` 1.30.0, which speaks an earlier protocol revision. Nothing here was run against a 2026-07-28 server or client.
+
+**F-L44-10 - the progress handler divides by zero on an empty write.** `write_file` reports `total=0` for empty content, and the handler computes `progress / total * 100`. Through the real server and the port's handler before the fix, the final `Write complete` notification raised `float division by zero` inside the handler; the library logged `Progress callback raised an exception` and the tool call still succeeded (`is_error` false). The lab's `handle_progress` does the same division; I did not run the lab's client on an empty write. The port treats a zero total as an unknown total and prints the raw progress, with a test.
 
 ## Prior art carried across
 

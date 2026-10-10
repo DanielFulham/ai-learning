@@ -2,7 +2,7 @@ from domain.directory_item import DirectoryItem
 
 
 def format_progress(progress: float, total: float | None, message: str | None) -> str:
-    if total is not None:
+    if total is not None and total != 0:
         return f"Progress: {progress / total * 100:.1f}% - {message or ''}"
     return f"Progress: {progress} - {message or ''}"
 
