@@ -1,0 +1,21 @@
+# MCP server and client
+fastmcp==3.4.8
+
+# MCP tools for LangChain (caps mcp below 2.0)
+langchain-mcp-adapters==0.3.2
+
+# MCP protocol types (imported directly; held at 1.x to match the adapters)
+mcp==1.30.0
+
+# Agent runtime
+langchain==1.4.4
+langgraph==1.2.14
+
+# Model
+langchain-anthropic==1.7.5
+
+# Environment
+python-dotenv==1.2.4
+
+# Testing
+pytest==9.1.1
