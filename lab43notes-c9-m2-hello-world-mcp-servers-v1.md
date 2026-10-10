@@ -40,7 +40,7 @@ python agent_demo.py multi             # stdio and HTTP servers together; the to
 
 Tests (58, no key and no network): `pytest`
 
-The `http` and `multi` runs print uvicorn startup lines and end with a `CancelledError` traceback when the in-process server is shut down. That is expected; the results are printed before it (F-L43-8).
+The `http` and `multi` runs print uvicorn's startup and shutdown lines around the results; the in-process server stops cleanly (F-L43-8).
 
 Resolved on 10 October 2026:
 
@@ -96,7 +96,7 @@ course9-module2-lab1/
 - The document resource reads through `FileDocumentStore`, which resolves the requested name and checks it is still inside the root (F-L43-1).
 - The documents directory, sample URLs, port and stdio command live in `config.py`. The download script has `timeout=10`, skips a file that already has content, and prints no check-mark glyphs (F-L43-8).
 - `streamablehttp_client` is replaced by `streamable_http_client` (F-L43-6). Results are narrowed with `isinstance(..., TextContent)` and `TextResourceContents` before `.text` is read.
-- The in-process HTTP server runs `run_http_async(port=..., show_banner=False)` as a task, waits until the port binds, and cancels the task in `finally`. A busy port raises `RuntimeError` instead of printing a message and returning.
+- The in-process HTTP server runs uvicorn directly (`server.http_app()` under `uvicorn.Server`) as a task, waits for `started`, and sets `should_exit` in `finally` so the lifespan shuts down cleanly. A busy port raises `RuntimeError` instead of printing a message and returning.
 - `MultiServerMCPClient` is built with `tool_name_prefix=True` (F-L43-2). The stdio server is started with `sys.executable`, so it runs in the venv's interpreter.
 - The agent cells use `ChatAnthropic` (`claude-haiku-4-5`). The agent service returns an `AgentReply` of typed turns, and `agent_demo.py` prints them.
 
@@ -116,7 +116,7 @@ course9-module2-lab1/
 
 **F-L43-7 - `fastmcp` is held at 3.4.8 while 4.1.0 is available.** Startup prints an update banner for 4.1.0. `fastmcp` 4.x needs `mcp>=2`, and `langchain-mcp-adapters` 0.3.2 caps `mcp<2` (Lab 42), so an agent over `MultiServerMCPClient` and a 4.x `fastmcp` cannot share one environment today. Lab 41 ran `fastmcp` 4.0.10 on `mcp` 2.3.0 in its own. Nothing in this lab was run on `fastmcp` 4.x.
 
-**F-L43-8 - Windows output and shutdown noise.** A Python script whose output is redirected or piped on Windows writes with cp1252 and crashed with `UnicodeEncodeError` on a check-mark glyph; `$env:PYTHONUTF8="1"` fixes it for a redirected run, and the glyphs were removed from the download script instead. When the in-process HTTP task is cancelled at the end of a run, uvicorn logs a `CancelledError` traceback from its lifespan handler. Every run that printed it had already produced its results; I did not investigate it further.
+**F-L43-8 - Windows output and shutdown noise.** A Python script whose output is redirected or piped on Windows writes with cp1252 and crashed with `UnicodeEncodeError` on a check-mark glyph; `$env:PYTHONUTF8="1"` fixes it for a redirected run, and the glyphs were removed from the download script instead. With the in-process HTTP task started through `run_http_async` and cancelled at the end of a run, uvicorn logged a `CancelledError` traceback from its lifespan handler; the results had always printed first. Running uvicorn directly and setting `should_exit` instead of cancelling removed the traceback on Windows (`agent_demo.py http` and `raw_client_demo.py http`). I did not trace why cancelling produced it.
 
 ## Prior art carried across
 
@@ -129,7 +129,7 @@ course9-module2-lab1/
 - The notebook's original `read_document` against a traversal name; the containment check is a hardening, not a reproduced vulnerability.
 - Windows path forms in the containment check (`C:\...`, UNC, drive-relative names, reserved device names).
 - Whether a provider other than Anthropic accepts duplicate tool names, and how any model chooses between them (F-L43-2 is one run).
-- `fastmcp` 4.x, and whether the cancel-time traceback (F-L43-8) differs there.
+- `fastmcp` 4.x, and whether `http_app()` and the uvicorn shutdown behave the same there.
 - Whether `MultiServerMCPClient` starts a new stdio process per tool call on this server (Lab 42 saw it on a stand-in server).
 - Security of the HTTP server beyond the containment fix: it serves on 127.0.0.1 with no authentication, and origin checks and transport hardening were not reviewed.
 - One machine, one Python 3.14, one set of pinned versions.
