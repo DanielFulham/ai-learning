@@ -2,7 +2,7 @@
 
 > Code: [`course9-module2-lab2/`](course9-module2-lab2/)
 
-This is a port of IBM Skills Network's "Build an Enhanced MCP Server" lab (the lab's template repository is not included here) on Python 3.14 and Windows. I did the lab first from its own files, then rebuilt it as two separate onion-layered apps. 97 tests pass without an API key or an external network: 39 on the server and 58 on the client, with one more server test skipped on my machine.
+This is a port of IBM Skills Network's "Build an Enhanced MCP Server" lab (the lab's template repository is not included here) on Python 3.14 and Windows. I did the lab first from its own files, then rebuilt it as two separate onion-layered apps. 98 tests pass without an API key or an external network: 40 on the server and 58 on the client, with two more server tests skipped on my machine.
 
 ## What the lab builds
 
@@ -145,6 +145,10 @@ course9-module2-lab2/
 
 **F-L44-10 - the progress handler divides by zero on an empty write.** `write_file` reports `total=0` for empty content, and the handler computes `progress / total * 100`. Through the real server and the port's handler before the fix, the final `Write complete` notification raised `float division by zero` inside the handler; the library logged `Progress callback raised an exception` and the tool call still succeeded (`is_error` false). The lab's `handle_progress` does the same division; I did not run the lab's client on an empty write. The port treats a zero total as an unknown total and prints the raw progress, with a test.
 
+**F-L44-11 - overlapping writes to one path could interleave, so writes and deletes share a lock.** `write_file` truncates the file and then appends ten chunks with an `await` between them, so two overlapping calls on the same path could mix their chunks. Over stdio with one client this does not come up; over HTTP it can. `write_file` and `delete_file` now run under one `asyncio.Lock` per server. The test starts two concurrent writes to one path against a mock store and checks that the second create call comes after all ten chunks of the first; with the lock replaced by `if True:` that test fails, and it passes with the lock restored. One lock covers all paths, so unrelated writes also wait on each other. The test checks the order of store calls, not the file content on disk.
+
+**F-L44-12 - deleting a symbolic link would have deleted its target.** `LocalFileStore._resolve` follows links, so `delete("link.txt")` unlinked the file the link points to and left the link in place. `delete` now refuses a path that is itself a symbolic link, after the containment check, and `delete_file` returns that refusal as text (F-L44-4). The test is skipped on the Windows machine used for this lab because the account cannot create links, so the refusal itself was not run here. A link in a parent folder is still followed.
+
 ## Prior art carried across
 
 - **Errors delivered as ordinary text (Lab 41 F-L41-7; Lab 43 F-L43-5).** F-L44-4 is the same shape: `delete_file` reports failure as a normal result.
@@ -159,6 +163,7 @@ course9-module2-lab2/
 - Decline and cancel against the real client, and the `max_tokens` warning against the real API.
 - `fastmcp` 4.x, `mcp` 2.x and the 2026-07-28 protocol (F-L44-9).
 - The HTTP mode listens on 127.0.0.1 with no authentication. I did not review origin checks.
+- Throughput with the write lock: one lock serialises writes to different paths too, and I did not measure the effect.
 
 ---
 
