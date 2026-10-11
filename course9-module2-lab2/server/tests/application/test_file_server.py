@@ -133,6 +133,26 @@ def test_write_file_reports_progress() -> None:
     assert len(seen) == 11
 
 
+def test_concurrent_writes_do_not_interleave() -> None:
+    store = _make_store()
+
+    async def run() -> None:
+        async with _make_client(store) as client:
+            await asyncio.gather(
+                client.call_tool_mcp("write_file", {"file_path": "a.txt", "content": "a" * 20}),
+                client.call_tool_mcp("write_file", {"file_path": "a.txt", "content": "b" * 20}),
+            )
+
+    asyncio.run(run())
+    contents = [c.args[1] for c in store.write_text.call_args_list]
+    # Each write is one empty create plus 10 chunks, so with the lock the second
+    # create comes right after the first write's 10 chunks.
+    assert [i for i, text in enumerate(contents) if text == ""] == [0, 11]
+    assert len(set(contents[1:11])) == 1
+    assert len(set(contents[12:])) == 1
+    assert contents[1] != contents[12]
+
+
 def test_write_file_outside_root_is_an_error() -> None:
     store = _make_store()
     store.write_text.side_effect = PathOutsideRootError("outside")

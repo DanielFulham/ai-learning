@@ -128,3 +128,15 @@ def test_a_link_that_points_outside_the_root_is_refused(tmp_path: Path) -> None:
         pytest.skip("this machine does not allow creating symbolic links")
     with pytest.raises(PathOutsideRootError):
         store.read_text("link.txt")
+
+
+def test_delete_refuses_a_link_and_keeps_the_target(tmp_path: Path) -> None:
+    store = _make_store(tmp_path)
+    store.write_text("target.txt", "TEST_CONTENT")
+    try:
+        os.symlink(tmp_path / "root" / "target.txt", tmp_path / "root" / "link.txt")
+    except OSError:
+        pytest.skip("this machine does not allow creating symbolic links")
+    with pytest.raises(ValueError, match="symbolic link"):
+        store.delete("link.txt")
+    assert store.read_text("target.txt") == "TEST_CONTENT"

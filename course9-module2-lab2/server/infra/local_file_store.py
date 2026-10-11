@@ -39,7 +39,10 @@ class LocalFileStore(FileStoreInterface):
             f.write(content)
 
     def delete(self, path: str) -> None:
-        self._resolve(path).unlink()
+        resolved = self._resolve(path)
+        if (self._root / path).is_symlink():
+            raise ValueError(f"Refusing to delete a symbolic link: {path}")
+        resolved.unlink()
 
     def list_entries(self, path: str) -> list[RawEntry]:
         directory = self._resolve(path)

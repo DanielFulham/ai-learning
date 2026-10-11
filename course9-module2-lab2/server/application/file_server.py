@@ -30,6 +30,10 @@ _DOC_PROMPT_INTRO = (
 
 
 def _register_tools(mcp: FastMCP, file_store: FileStoreInterface, chunk_delay: float) -> None:
+    # One lock for every write and delete: a write spans several awaits, so two
+    # overlapping calls on the same path could otherwise interleave their chunks.
+    write_lock = asyncio.Lock()
+
     @mcp.tool()
     async def write_file(file_path: str, content: str, ctx: Context) -> str:
         """Create a new file with specified content.
@@ -52,15 +56,18 @@ def _register_tools(mcp: FastMCP, file_store: FileStoreInterface, chunk_delay: f
             total = len(content)
             chunk_size = max(total // 10, 1)
 
-            # An empty first write creates the file even when the content is empty.
-            file_store.write_text(file_path, "")
-            for i in range(0, total, chunk_size):
-                file_store.write_text(file_path, content[i : i + chunk_size], append=True)
-                written = min(i + chunk_size, total)
-                await ctx.report_progress(
-                    progress=written, total=total, message=f"Writing progress: {written}/{total}"
-                )
-                await asyncio.sleep(chunk_delay)
+            async with write_lock:
+                # An empty first write creates the file even when the content is empty.
+                file_store.write_text(file_path, "")
+                for i in range(0, total, chunk_size):
+                    file_store.write_text(file_path, content[i : i + chunk_size], append=True)
+                    written = min(i + chunk_size, total)
+                    await ctx.report_progress(
+                        progress=written,
+                        total=total,
+                        message=f"Writing progress: {written}/{total}",
+                    )
+                    await asyncio.sleep(chunk_delay)
 
             await ctx.report_progress(progress=total, total=total, message="Write complete")
             await ctx.info(f"File written successfully to: {file_path}")
@@ -85,7 +92,8 @@ def _register_tools(mcp: FastMCP, file_store: FileStoreInterface, chunk_delay: f
         try:
             kind = file_store.kind_of(file_path)
             if kind == "file":
-                file_store.delete(file_path)
+                async with write_lock:
+                    file_store.delete(file_path)
                 await ctx.info(f"Successfully deleted file {file_path}")
                 return f"Successfully deleted file {file_path}"
             if kind == "directory":
