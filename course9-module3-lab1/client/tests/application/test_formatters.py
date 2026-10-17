@@ -1,5 +1,8 @@
 from application.formatters import (
+    COMMANDS_LINE,
+    CONNECTED,
     HELP_TEXT,
+    WELCOME,
     format_history,
     format_prompt,
     format_rendered_prompt,
@@ -44,6 +47,12 @@ def test_format_history_numbers_entries_from_one() -> None:
 
 def test_format_history_when_empty_says_so() -> None:
     assert format_history([]) == "  No operations yet"
+
+
+def test_fixed_messages_can_be_written_to_a_cp1252_stream() -> None:
+    # Redirected stdout on Windows uses cp1252; a character outside it crashes the client.
+    for text in (CONNECTED, WELCOME, COMMANDS_LINE, HELP_TEXT):
+        text.encode("cp1252")
 
 
 def test_help_text_names_every_command() -> None:

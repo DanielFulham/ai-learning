@@ -2,7 +2,7 @@
 
 > Code: [`course9-module3-lab1/`](course9-module3-lab1/)
 
-A command-line MCP client and a small MCP server, as two separate onion-layered apps. The server is built with FastMCP (two tools, one resource template, one prompt). The client uses the official `mcp` SDK's `ClientSession` and reaches the server over stdio or Streamable HTTP, through separate transport classes behind one interface. 107 tests pass without an API key or an external network: 38 on the server and 69 on the client, with one more server test skipped on my machine.
+A command-line MCP client and a small MCP server, as two separate onion-layered apps. The server is built with FastMCP (two tools, one resource template, one prompt). The client uses the official `mcp` SDK's `ClientSession` and reaches the server over stdio or Streamable HTTP, through separate transport classes behind one interface. 108 tests pass without an API key or an external network: 38 on the server and 70 on the client, with one more server test skipped on my machine.
 
 This is a port of IBM Skills Network's "Build a Custom MCP Client with Python" lab (the lab text is not included here) on Python 3.13 and Windows. I did the lab first from its own files, then rebuilt it as two apps.
 
@@ -144,7 +144,8 @@ course9-module3-lab1/
 - The `resources` command reads each template's `name` and `uriTemplate` directly. The lab's `getattr` fallbacks would print `N/A` or `Unnamed resource` if a field were renamed. Non-text content parts are skipped explicitly.
 - Added, not in the lab: an `http` mode for the server and a URL argument for the client.
 - Return types, `isinstance` narrowing and a session helper (F-L45-6). The history is a typed record, and `help` also lists `history`, which the lab's help text does not because its extensions are separate.
-- Kept as the lab has it: the check-mark glyph (F-L45-4), a tool result flagged as an error printing like any result (pinned by a test), a failed connection raising out of the client, and `input()` blocking inside the async loop.
+- The connect message has no check mark (F-L45-4).
+- Kept as the lab has it: a tool result flagged as an error printing like any result (pinned by a test), a failed connection raising out of the client, and `input()` blocking inside the async loop.
 - The lab's sample files are not included. `server/resources/` holds two files of my own text, and the lab's `notes.txt` exercise is not reproduced.
 - The lab pins `mcp==1.16.0` and `fastmcp==2.12.5` and leaves `pydantic` unpinned. I did not try that install; Lab 44's older pins failed at `import fastmcp` with `pydantic` 2.14.0 (F-L44-1). The port pins every direct dependency at the Lab 43 and 44 versions, and the client does not install `fastmcp`.
 
@@ -156,7 +157,7 @@ course9-module3-lab1/
 
 **F-L45-3 - a missing resource file is ordinary text, not an error.** `file://resources/missing.txt` returned `File not found: missing.txt` as the resource content, over stdio and over HTTP. No error is raised, so a caller that checks only for errors shows the message as the file. The port keeps the lab's behaviour and pins it with a test; any other read failure raises.
 
-**F-L45-4 - the check-mark glyph crashes on redirected output on Windows.** With stdout piped and no `PYTHONIOENCODING`, `print("✓ Connected to MCP server")` raised `UnicodeEncodeError: 'charmap' codec can't encode character '✓'` and the client exited with code 1. With `PYTHONIOENCODING=utf-8` the same session ran. In a terminal window the line printed. Lab 43's F-L43-8 is the same problem; that lab removed the glyph, and this port keeps the lab's.
+**F-L45-4 - the check-mark glyph crashes on redirected output on Windows.** With stdout piped and no `PYTHONIOENCODING`, `print("✓ Connected to MCP server")` raised `UnicodeEncodeError: 'charmap' codec can't encode character '✓'` and the client exited with code 1. With `PYTHONIOENCODING=utf-8` the same session ran. In a terminal window the line printed. Lab 43's F-L43-8 is the same problem. The port's connect message is plain text, and a test checks that the fixed messages encode in cp1252; with it, a piped run without the setting connected and exited with code 0. The `•` bullets are in cp1252 and are kept. Text that comes from a server, such as a resource file with other characters, is not covered.
 
 **F-L45-5 - the server banner prints despite the lab's logging line.** The lab's server sets the `fastmcp` logger to WARNING to keep output quiet. Running the server alone, the FastMCP banner and an "Update available: 4.1.0" notice still printed. In the client's merged output they also appear; the SDK relays the child's stderr, so they come from the server's stderr, which I did not check separately. In a piped run the banner's box characters printed as `▄`-style escapes, and I did not find out why. The port keeps the lab's logging line and prints nothing of its own to the server's stdout.
 

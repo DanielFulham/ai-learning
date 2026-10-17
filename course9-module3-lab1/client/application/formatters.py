@@ -3,7 +3,7 @@ from domain.prompt_info import PromptInfo, RenderedPrompt
 from domain.resource_template_info import ResourceTemplateInfo
 from domain.tool_info import ToolInfo
 
-CONNECTED = "✓ Connected to MCP server"
+CONNECTED = "Connected to MCP server"
 
 WELCOME = "\n=== MCP Client ==="
 
