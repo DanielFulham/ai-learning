@@ -18,6 +18,7 @@ course7-module1-lab1-v3-event-sourcing/events.db
 course7-module1-lab1-v3-event-sourcing/debug.db
 conventions/
 CLAUDE.md
+.claude/
 CONVENTIONS_TESTING.md
 **/docs/v3b-c8-deferrals.md
 **/docs/prompts/

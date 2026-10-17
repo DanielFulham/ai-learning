@@ -1,0 +1,4 @@
+Project Name: Sample Project
+Version: 1.0.0
+Description: A sample file served by the lab server as a resource
+Status: Active
