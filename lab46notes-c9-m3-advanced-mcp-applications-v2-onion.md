@@ -2,7 +2,7 @@
 
 > Code: [`course9-module3-lab2-v2-onion/`](course9-module3-lab2-v2-onion/)
 
-[V1](lab46notes-c9-m3-advanced-mcp-applications-v1.md) is the lab's four files as written. This is the same system as two separate onion-layered apps: an HTTP/stdio MCP file server and a client with two entry points, a Gradio client page and a Gradio chat host for `gpt-4o-mini`. 210 tests pass without an API key or an external network: 62 on the server (one more skipped) and 148 on the client.
+[V1](lab46notes-c9-m3-advanced-mcp-applications-v1.md) is the lab's four files as written. This is the same system as two separate onion-layered apps: an HTTP/stdio MCP file server and a client with two entry points, a Gradio client page and a Gradio chat host for `gpt-4o-mini`. 210 tests pass without an API key or an external network: 62 on the server (63 collected; one is skipped) and 148 on the client. Counted on Windows with Python 3.14.0: one server test runs only on Windows (backslash paths) and the symbolic-link test is skipped where links cannot be created, so another platform reports different numbers.
 
 The lab's stubs are kept as stubs: "roots" is the server's folder, and `analyze_code` is the canned string (F-L46-2, F-L46-3 in V1). The fixes are listed under Differences, each added test first.
 
