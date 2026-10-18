@@ -156,6 +156,61 @@ def test_connecting_at_the_same_time_opens_the_transport_once(
     assert transport.opened == 1
 
 
+class _FailingFakeClientSession(_SlowFakeClientSession):
+    async def initialize(self) -> None:
+        raise RuntimeError("TEST_BOOM")
+
+
+class _TrackingTransport:
+    """Counts how many times the connection was opened and how many times it was closed."""
+
+    def __init__(self) -> None:
+        self.opened = 0
+        self.closed = 0
+
+    @asynccontextmanager
+    async def open(self) -> AsyncIterator[MessageStream]:
+        self.opened += 1
+        try:
+            async with create_client_server_memory_streams() as (client_streams, _):
+                yield client_streams
+        finally:
+            self.closed += 1
+
+
+def test_a_failed_handshake_closes_what_it_opened_and_a_retry_does_not_pile_up(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A failed connect must not leave its transport open on the long-lived stack, or each retry
+    # would add another until shutdown.
+    monkeypatch.setattr("infra.mcp_sdk_session.ClientSession", _FailingFakeClientSession)
+    transport = _TrackingTransport()
+
+    async def run() -> None:
+        session = McpSdkSession(transport)
+        for _ in range(2):
+            with pytest.raises(RuntimeError, match="TEST_BOOM"):
+                await session.connect()
+        # Checked here: asyncio.run would close a leaked connection at shutdown and hide it.
+        assert (transport.opened, transport.closed) == (2, 2)
+
+    asyncio.run(run())
+
+
+def test_a_successful_connect_is_closed_by_close(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("infra.mcp_sdk_session.ClientSession", _SlowFakeClientSession)
+    transport = _TrackingTransport()
+
+    async def run() -> None:
+        session = McpSdkSession(transport)
+        await session.connect()
+        assert transport.closed == 0
+        await session.close()
+
+    asyncio.run(run())
+    assert (transport.opened, transport.closed) == (1, 1)
+
+
 def test_lists_tools_with_their_schema_and_an_empty_string_for_a_missing_description() -> None:
     async def run() -> list[tuple[str, str, dict[str, object]]]:
         session = _make_session()

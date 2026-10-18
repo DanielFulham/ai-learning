@@ -1,4 +1,5 @@
 import json
+from collections.abc import Sequence
 
 from application.mappers import (
     to_prompt_info,
@@ -69,20 +70,13 @@ class HostService:
     helper tools that expose the server's resources and prompts to the model.
 
     One round of tool calls per message, as in the lab. Every method connects first (the session
-    ignores a second connect).
+    ignores a second connect). The service keeps no conversation: the caller passes the history
+    in and gets the new history back, so each page session has its own.
     """
 
     def __init__(self, session: McpSessionInterface, chat_model: LlmChatModelInterface) -> None:
         self._session = session
         self._chat_model = chat_model
-        self._history: list[Message] = []
-
-    @property
-    def history(self) -> tuple[Message, ...]:
-        return tuple(self._history)
-
-    def reset(self) -> None:
-        self._history = []
 
     async def get_available_tools(self) -> list[ToolInfo]:
         """The server's tools in the shape the model is offered, then the four helper tools."""
@@ -126,9 +120,13 @@ class HostService:
             return f"Error executing tool: {str(e)}"
 
     async def _list_resources(self) -> str:
-        templates = [
-            to_resource_template_info(raw) for raw in await self._session.list_resource_templates()
-        ]
+        try:
+            templates = [
+                to_resource_template_info(raw)
+                for raw in await self._session.list_resource_templates()
+            ]
+        except Exception as e:
+            return f"Error listing resources: {str(e)}"
         result = "Available resources:\n"
         for template in templates:
             result += f"- {template.uri_template}"
@@ -150,7 +148,10 @@ class HostService:
             return f"Error reading resource: {str(e)}"
 
     async def _list_prompts(self) -> str:
-        prompts = [to_prompt_info(raw) for raw in await self._session.list_prompts()]
+        try:
+            prompts = [to_prompt_info(raw) for raw in await self._session.list_prompts()]
+        except Exception as e:
+            return f"Error listing prompts: {str(e)}"
         result = "Available prompts:\n"
         for prompt in prompts:
             result += f"- {prompt.name}"
@@ -193,18 +194,18 @@ class HostService:
             return "Error: the tool arguments must be a JSON object"
         return await self.execute_tool(call.name, arguments)
 
-    async def chat(self, user_message: str) -> ChatReply:
+    async def chat(self, user_message: str, history: Sequence[Message] = ()) -> ChatReply:
         """Answer a message, running the tools the model asks for (one round) as the lab does."""
         await self._session.connect()
-        self._history.append(Message(role="user", text=user_message))
+        messages = [*history, Message(role="user", text=user_message)]
 
         tools = await self.get_available_tools()
-        reply = await self._chat_model.complete(self._history, tools)
+        reply = await self._chat_model.complete(tuple(messages), tools)
         if reply is None:
-            return ChatReply("Error: No response from LLM")
+            return ChatReply("Error: No response from LLM", history=tuple(messages))
 
         if reply.tool_calls:
-            self._history.append(
+            messages.append(
                 Message(role="assistant", text=reply.text or "", tool_calls=reply.tool_calls)
             )
 
@@ -212,15 +213,15 @@ class HostService:
             for call in reply.tool_calls:
                 tool_result = str(await self._run_tool_call(call))
                 activity.append(ToolActivity(call.name, call.arguments_json, tool_result))
-                self._history.append(Message(role="tool", text=tool_result, tool_call_id=call.id))
+                messages.append(Message(role="tool", text=tool_result, tool_call_id=call.id))
 
-            final = await self._chat_model.complete(self._history, [])
+            final = await self._chat_model.complete(tuple(messages), [])
             if final is None:
                 message = "Error: No response from LLM after tool execution"
-                return ChatReply(message, tuple(activity))
+                return ChatReply(message, tuple(activity), tuple(messages))
 
-            self._history.append(Message(role="assistant", text=final.text))
-            return ChatReply(final.text or _NO_TEXT, tuple(activity))
+            messages.append(Message(role="assistant", text=final.text))
+            return ChatReply(final.text or _NO_TEXT, tuple(activity), tuple(messages))
 
-        self._history.append(Message(role="assistant", text=reply.text))
-        return ChatReply(reply.text or _NO_TEXT)
+        messages.append(Message(role="assistant", text=reply.text))
+        return ChatReply(reply.text or _NO_TEXT, history=tuple(messages))

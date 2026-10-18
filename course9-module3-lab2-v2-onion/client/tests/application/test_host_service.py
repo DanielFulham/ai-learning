@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from application.host_service import HostService
-from domain.conversation import ChatReply, ModelReply, ToolActivity, ToolCall
+from domain.conversation import ModelReply, ToolActivity, ToolCall
 from interfaces.llm_chat_model_interface import LlmChatModelInterface
 from interfaces.mcp_session_interface import McpSessionInterface
 
@@ -223,9 +223,10 @@ def test_chat_without_tool_calls_returns_the_text_and_keeps_the_history() -> Non
     session = _make_session()
     model = _make_model(ModelReply(text="TEST_ANSWER"))
     service = _service(session, model)
-    assert asyncio.run(service.chat("TEST_QUERY")) == ChatReply("TEST_ANSWER")
+    reply = asyncio.run(service.chat("TEST_QUERY"))
+    assert reply.text == "TEST_ANSWER"
     session.connect.assert_awaited()
-    assert [(m.role, m.text) for m in service.history] == [
+    assert [(m.role, m.text) for m in reply.history] == [
         ("user", "TEST_QUERY"),
         ("assistant", "TEST_ANSWER"),
     ]
@@ -239,18 +240,19 @@ def test_chat_runs_the_tool_the_model_asks_for_then_asks_again_with_no_tools() -
     model = _make_model(ModelReply(text=None, tool_calls=(call,)), ModelReply(text="TEST_FINAL"))
     service = _service(session, model)
     reply = asyncio.run(service.chat("TEST_QUERY"))
-    assert reply == ChatReply(
-        "TEST_FINAL", (ToolActivity("TEST_TOOL", json.dumps({"a": "V"}), "TEST_RESULT"),)
+    assert reply.text == "TEST_FINAL"
+    assert reply.tool_activity == (
+        ToolActivity("TEST_TOOL", json.dumps({"a": "V"}), "TEST_RESULT"),
     )
     session.call_tool.assert_awaited_once_with("TEST_TOOL", {"a": "V"})
     assert model.complete.call_args_list[1].args[1] == []
-    assert [(m.role, m.text, m.tool_call_id) for m in service.history] == [
+    assert [(m.role, m.text, m.tool_call_id) for m in reply.history] == [
         ("user", "TEST_QUERY", None),
         ("assistant", "", None),
         ("tool", "TEST_RESULT", "TEST_CALL"),
         ("assistant", "TEST_FINAL", None),
     ]
-    assert service.history[1].tool_calls == (call,)
+    assert reply.history[1].tool_calls == (call,)
 
 
 def test_chat_stops_after_one_round_of_tool_calls() -> None:
@@ -266,7 +268,8 @@ def test_chat_stops_after_one_round_of_tool_calls() -> None:
 
 def test_chat_with_no_answer_from_the_model_says_so() -> None:
     reply = asyncio.run(_service(_make_session(), _make_model(None)).chat("Q"))
-    assert reply == ChatReply("Error: No response from LLM")
+    assert reply.text == "Error: No response from LLM"
+    assert [m.text for m in reply.history] == ["Q"]
 
 
 def test_chat_with_no_answer_after_the_tools_says_so() -> None:
@@ -287,7 +290,7 @@ def test_tool_arguments_that_are_not_json_are_reported_to_the_model_not_raised()
     assert reply.text == "TEST_FINAL"
     assert reply.tool_activity[0].result.startswith("Error: the tool arguments were not valid JSON")
     session.call_tool.assert_not_called()
-    tool_message = service.history[2]
+    tool_message = reply.history[2]
     assert (tool_message.role, tool_message.tool_call_id) == ("tool", "TEST_CALL")
     assert (tool_message.text or "").startswith("Error: the tool arguments were not valid JSON")
 
@@ -300,16 +303,58 @@ def test_tool_arguments_that_are_json_but_not_an_object_are_reported_to_the_mode
     call = ToolCall("TEST_CALL", "TEST_TOOL", arguments_json)
     model = _make_model(ModelReply(text=None, tool_calls=(call,)), ModelReply(text="TEST_FINAL"))
     service = _service(session, model)
-    assert asyncio.run(service.chat("Q")).text == "TEST_FINAL"
+    reply = asyncio.run(service.chat("Q"))
+    assert reply.text == "TEST_FINAL"
     session.call_tool.assert_not_called()
-    assert service.history[2].text == "Error: the tool arguments must be a JSON object"
+    assert reply.history[2].text == "Error: the tool arguments must be a JSON object"
 
 
-def test_reset_clears_the_history() -> None:
-    service = _service(_make_session(), _make_model(ModelReply(text="TEST_ANSWER")))
-    asyncio.run(service.chat("TEST_QUERY"))
-    service.reset()
-    assert service.history == ()
+def test_the_service_keeps_no_conversation_of_its_own() -> None:
+    # Two users of one service must not see each other's messages (one history per page session).
+    model = _make_model(ModelReply(text="TEST_A"), ModelReply(text="TEST_B"))
+    service = _service(_make_session(), model)
+    first = asyncio.run(service.chat("TEST_FIRST"))
+    second = asyncio.run(service.chat("TEST_SECOND"))
+    assert [m.text for m in second.history] == ["TEST_SECOND", "TEST_B"]
+    assert [m.text for m in model.complete.call_args_list[1].args[0]] == ["TEST_SECOND"]
+    assert [m.text for m in first.history] == ["TEST_FIRST", "TEST_A"]
+
+
+def test_a_conversation_continues_from_the_history_passed_in() -> None:
+    model = _make_model(ModelReply(text="TEST_A"), ModelReply(text="TEST_B"))
+    service = _service(_make_session(), model)
+    first = asyncio.run(service.chat("TEST_FIRST"))
+    second = asyncio.run(service.chat("TEST_SECOND", first.history))
+    assert [m.text for m in model.complete.call_args_list[1].args[0]] == [
+        "TEST_FIRST",
+        "TEST_A",
+        "TEST_SECOND",
+    ]
+    assert [m.text for m in second.history] == ["TEST_FIRST", "TEST_A", "TEST_SECOND", "TEST_B"]
+
+
+def test_a_failure_listing_resources_is_reported_as_text() -> None:
+    session = _make_session()
+    session.list_resource_templates.side_effect = RuntimeError("TEST_BOOM")
+    assert _execute(_service(session), "mcp_list_resources", {}) == (
+        "Error listing resources: TEST_BOOM"
+    )
+
+
+def test_a_failure_listing_prompts_is_reported_as_text() -> None:
+    session = _make_session()
+    session.list_prompts.side_effect = RuntimeError("TEST_BOOM")
+    assert _execute(_service(session), "mcp_list_prompts", {}) == "Error listing prompts: TEST_BOOM"
+
+
+def test_a_failed_listing_during_a_chat_goes_back_to_the_model_not_out_of_the_chat() -> None:
+    session = _make_session()
+    session.list_prompts.side_effect = RuntimeError("TEST_BOOM")
+    call = ToolCall("TEST_CALL", "mcp_list_prompts", "{}")
+    model = _make_model(ModelReply(text=None, tool_calls=(call,)), ModelReply(text="TEST_FINAL"))
+    reply = asyncio.run(_service(session, model).chat("Q"))
+    assert reply.text == "TEST_FINAL"
+    assert reply.tool_activity[0].result == "Error listing prompts: TEST_BOOM"
 
 
 @pytest.mark.parametrize("text", [None, ""])

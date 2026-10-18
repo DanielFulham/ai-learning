@@ -2,7 +2,7 @@
 
 > Code: [`course9-module3-lab2-v2-onion/`](course9-module3-lab2-v2-onion/)
 
-[V1](lab46notes-c9-m3-advanced-mcp-applications-v1.md) is the lab's four files as written. This is the same system as two separate onion-layered apps: an HTTP/stdio MCP file server and a client with two entry points, a Gradio client page and a Gradio chat host for `gpt-4o-mini`. 203 tests pass without an API key or an external network: 62 on the server (one more skipped) and 141 on the client.
+[V1](lab46notes-c9-m3-advanced-mcp-applications-v1.md) is the lab's four files as written. This is the same system as two separate onion-layered apps: an HTTP/stdio MCP file server and a client with two entry points, a Gradio client page and a Gradio chat host for `gpt-4o-mini`. 210 tests pass without an API key or an external network: 62 on the server (one more skipped) and 148 on the client.
 
 The lab's stubs are kept as stubs: "roots" is the server's folder, and `analyze_code` is the canned string (F-L46-2, F-L46-3 in V1). The fixes are listed under Differences, each added test first.
 
@@ -83,7 +83,7 @@ course9-module3-lab2-v2-onion/
     └── tests/
 ```
 
-`build_server` takes the file store as a parameter and imports nothing from `infra`; its tests use an in-memory `fastmcp` `Client` with `MagicMock(spec=FileStoreInterface)`. The host service takes a session and a chat model as interfaces, so its tests run the full chat loop with mocks. The OpenAI client is built on the first `complete()`, not in the constructor, because `OpenAI()` raises at construction without a key.
+`build_server` takes the file store as a parameter and imports nothing from `infra`; its tests use an in-memory `fastmcp` `Client` with `MagicMock(spec=FileStoreInterface)`. The host service takes a session and a chat model as interfaces, so its tests run the full chat loop with mocks. It keeps no conversation: `chat(message, history)` returns a `ChatReply` carrying the new history, and the page holds it in `gr.State`. The OpenAI client is built on the first `complete()`, not in the constructor, because `OpenAI()` raises at construction without a key.
 
 ## Differences from the lab
 
@@ -92,9 +92,9 @@ course9-module3-lab2-v2-onion/
 - **One client app with two entry points** sharing the domain, interfaces, infra and mappers. A separate protocol service was dropped: it would only have wrapped two session calls.
 - **Dropped or replaced:** the lab's `tools_cache` and `prompts_cache` (never read); `getattr` fallbacks (fields are read directly); the unused `history` argument on the chat function; `type="messages"` on `gr.Chatbot` (F-L46-15); the synchronous OpenAI client (the async one is used). Both command-line arguments are optional.
 - **Host results unpacked.** The model gets a resource's text and a prompt's messages as `[role]: text`, not Python reprs (F-L46-4 in V1). In one real run the role showed as `user`, where the lab's version printed three `[unknown]` lines.
-- **Fixed, each test first (F-L46-11 to F-L46-14).** Tool-argument JSON that is invalid or not an object is reported to the model as the tool's result; `mcp_get_prompt` accepts both argument shapes; `connect()` is guarded by a lock; a result the server flags as an error is shown as an error.
+- **Fixed, each test first (F-L46-13, F-L46-17 to F-L46-19).** Tool-argument JSON that is invalid or not an object is reported to the model as the tool's result; `mcp_get_prompt` accepts both argument shapes; `connect()` is guarded by a lock and cleans up after a failed handshake; a result the server flags as an error is shown as an error; the listing helper tools report failures as text; the conversation belongs to the page session, not the service.
 - **Added, not in the lab:** the Host and Origin checks (F-L46-11), the tool-call display and the no-text message on the chat page (F-L46-16).
-- **Kept as the lab has it:** one round of tool calls per message; the page header's "roots" text being display only; a session that is never closed (F-L46-12); the two chat pages sharing one history across browser tabs (not verified in the port).
+- **Kept as the lab has it:** one round of tool calls per message; the page header's "roots" text being display only; a session that is never closed (F-L46-12).
 
 ## Findings
 
@@ -111,6 +111,10 @@ course9-module3-lab2-v2-onion/
 **F-L46-16 - the chat page now shows which tools ran, and never shows `None`.** Two things made a demo hard to read. A model answer with no text came back as `None`, and Gradio had nothing to show. And when the model refused a path it was not visible whether a tool had been called at all. `HostService.chat()` now returns a `ChatReply` (the text, plus each tool call's name, the arguments the model wrote and the result); no text becomes "The model returned no text."; and the page prints a "Tool calls" list, one line each with the result cut at 200 characters, before the answer. Seen in the service's history on the real server: the model's `read_file` calls for `../run_server.py` and `/etc/passwd` did reach the tool and got the exact `Error: Access denied - path outside workspace roots`; the chat replies alone were weak evidence, since the model sometimes rewrote the path (dropped the `../`, decoded `%2F`) and sometimes refused without calling anything. Unit tests cover the formatting and the no-text cases; two scratch-copy mutations (no-text message removed, truncation removed) each failed one test. The new display was **not re-run in the browser**.
 
 **F-L46-17 - the model's own tool-call arguments can be wrong, and the port reports that back instead of crashing.** The lab's `json.loads` on the model's arguments is unguarded. The port returns `Error: the tool arguments were not valid JSON: ...` or `Error: the tool arguments must be a JSON object` as the tool's result, so the model can correct itself. Removing the object check failed 4 tests. `mcp_get_prompt` takes a filled nested `arguments` first and otherwise the keys beside `name` (removing the second path failed 2 tests). A result flagged `is_error` is shown as `Error: <text>` in the GUI and `Error executing tool: <text>` to the model (ignoring the flag failed 4 tests). One real run after these fixes, with the model passing the filename this time, does not show how often the original argument gap happens.
+
+**F-L46-18 - one shared history for every browser session (Copilot review, High).** The lab keeps one conversation on the host object, and the first version of the port copied that: `initialise_host()` built one `HostService` that every Gradio session shared, so a second tab got the first tab's prompts and tool results sent to the model, and Clear in one tab reset both. `HostService` now keeps no conversation. `chat(message, history)` builds the model's messages from the history passed in and returns the new history in the `ChatReply`; the page keeps it in a per-session `gr.State`, and Clear resets the state. Two service tests pin this (two chats on one service stay apart; a chat continues from the history given); ignoring the passed history on a scratch copy failed one. The MCP session itself is still one per process, shared by all page sessions; its calls carry no per-user state, and the lock from F-L46-13 covers the connect. Not run: two real browser tabs.
+
+**F-L46-19 - failed connects and failed listings (Copilot review, Medium, two comments).** (1) `McpSdkSession.connect()` pushed the transport and the session onto one long-lived exit stack before the handshake finished, so a failed `initialize()` left them registered and each retry added more until shutdown. Each attempt now has its own stack, and only a finished handshake is moved onto the long-lived one. The test checks, inside the running loop, that two failed connects opened two connections and closed two (before the fix it read 2 opened, 0 closed; `asyncio.run` closes leftover generators at exit, so a check after the run would have missed it). (2) `mcp_list_resources` and `mcp_list_prompts` called the session without the error handling the other tools have, so a dropped connection would end the chat event instead of reaching the model. They now return `Error listing resources: ...` and `Error listing prompts: ...`; removing the prompts guard failed 2 tests.
 
 ## Real runs
 
@@ -134,7 +138,7 @@ Seen from here, on this machine, with `gpt-4o-mini` and the real server; the mod
 - `fastmcp` 4.x, `mcp` 2.x and the 2026-07-28 revision (no `initialize` handshake, roots and sampling deprecated, new HTTP headers). A modernised port is not planned yet.
 - Authentication, HTTPS, and Host and Origin checks on Labs 44 and 45.
 - Closing the session at shutdown (F-L46-12).
-- The tool-call display in a browser, and two browser tabs sharing one history.
+- The tool-call display and the per-session history in a browser (the service tests show two histories stay apart; I did not open two tabs).
 - Windows drive and UNC paths, and symbolic links, in the root check.
 - Pylance on the ported apps; `gpt-4o-mini` availability beyond these runs.
 - One machine, Python 3.14.0, one set of pinned versions.

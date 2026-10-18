@@ -1,11 +1,11 @@
+from collections.abc import Sequence
 from typing import Protocol
 
-from domain.conversation import ChatReply
+from domain.conversation import ChatReply, Message
 
 
 class HostServiceInterface(Protocol):
-    """What the host entry point needs from the client application: a chat that can be reset."""
+    """What the host entry point needs from the client application: a chat that takes the
+    conversation so far and returns it, longer, with the answer."""
 
-    async def chat(self, user_message: str) -> ChatReply: ...
-
-    def reset(self) -> None: ...
+    async def chat(self, user_message: str, history: Sequence[Message] = ()) -> ChatReply: ...

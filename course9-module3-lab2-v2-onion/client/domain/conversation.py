@@ -35,10 +35,12 @@ class ToolActivity:
 
 @dataclass(frozen=True)
 class ChatReply:
-    """What the host gives back for a message: the answer, and the tools run to get it."""
+    """What the host gives back for a message: the answer, the tools run to get it, and the
+    conversation so far, to be passed back with the next message."""
 
     text: str
     tool_activity: tuple[ToolActivity, ...] = field(default_factory=tuple)
+    history: tuple[Message, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True)

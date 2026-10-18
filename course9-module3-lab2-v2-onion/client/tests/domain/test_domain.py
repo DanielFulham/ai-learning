@@ -71,6 +71,7 @@ def test_model_reply_defaults_to_no_tool_calls() -> None:
 def test_chat_reply_defaults_to_no_tool_activity() -> None:
     reply = ChatReply(text="TEST_TEXT")
     assert reply.tool_activity == ()
+    assert reply.history == ()
     with pytest.raises(FrozenInstanceError):
         setattr(reply, "text", "TEST_OTHER")
 

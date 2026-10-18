@@ -8,33 +8,38 @@ from application.formatters import format_chat_reply
 from application.interfaces.host_service_interface import HostServiceInterface
 from cli_arguments import parse_arguments
 from config import HOST_PORT, MODEL_ID, UI_HOST
+from domain.conversation import Message
 
 
 async def chat_turn(
-    service: HostServiceInterface, message: str, history: list[dict[str, str | None]]
-) -> list[dict[str, str | None]]:
-    """The conversation shown on the page, with this message and the model's answer added."""
+    service: HostServiceInterface,
+    message: str,
+    shown: list[dict[str, str | None]],
+    conversation: tuple[Message, ...],
+) -> tuple[list[dict[str, str | None]], tuple[Message, ...]]:
+    """The conversation shown on the page and the one kept for the model, each with this message
+    and the answer added."""
     if not message.strip():
-        return history
+        return shown, conversation
 
-    reply = await service.chat(message)
-    return history + [
+    reply = await service.chat(message, conversation)
+    shown = shown + [
         {"role": "user", "content": message},
         {"role": "assistant", "content": format_chat_reply(reply)},
     ]
+    return shown, reply.history
 
 
 def build_interface(service: HostServiceInterface, server: str, roots: str) -> gr.Blocks:
     """The lab's chat page. Gradio lives here and nowhere deeper."""
 
     async def chat_wrapper(
-        message: str, history: list[dict[str, str | None]]
-    ) -> list[dict[str, str | None]]:
-        return await chat_turn(service, message, history)
+        message: str, shown: list[dict[str, str | None]], conversation: tuple[Message, ...]
+    ) -> tuple[list[dict[str, str | None]], tuple[Message, ...]]:
+        return await chat_turn(service, message, shown, conversation)
 
-    async def reset_conversation() -> list[dict[str, str | None]]:
-        service.reset()
-        return []
+    async def reset_conversation() -> tuple[list[dict[str, str | None]], tuple[Message, ...]]:
+        return [], ()
 
     with gr.Blocks(title="MCP HTTP AI Host") as interface:
         gr.Markdown(f"""
@@ -49,6 +54,8 @@ The AI can use all available MCP tools, resources, and prompts during the conver
 """)
 
         chatbot = gr.Chatbot(label="Conversation", height=500)
+        # Each browser session gets its own conversation for the model.
+        conversation = gr.State(())
 
         with gr.Row():
             msg = gr.Textbox(
@@ -56,11 +63,11 @@ The AI can use all available MCP tools, resources, and prompts during the conver
             )
             clear = gr.Button("Clear", scale=1)
 
-        msg.submit(fn=chat_wrapper, inputs=[msg, chatbot], outputs=chatbot).then(
-            lambda: "", outputs=msg
-        )
+        msg.submit(
+            fn=chat_wrapper, inputs=[msg, chatbot, conversation], outputs=[chatbot, conversation]
+        ).then(lambda: "", outputs=msg)
 
-        clear.click(fn=reset_conversation, outputs=chatbot)
+        clear.click(fn=reset_conversation, outputs=[chatbot, conversation])
 
     return interface
 

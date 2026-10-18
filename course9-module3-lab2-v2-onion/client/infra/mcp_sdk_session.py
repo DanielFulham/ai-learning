@@ -35,10 +35,14 @@ class McpSdkSession(McpSessionInterface):
             if self._session is not None:
                 return
 
-            read, write = await self._stack.enter_async_context(self._transport.open())
-            session = await self._stack.enter_async_context(ClientSession(read, write))
-            await session.initialize()
-            self._session = session
+            # This attempt gets its own stack. If any step fails, leaving the `with` closes what was
+            # opened; only a finished handshake is moved onto the long-lived stack.
+            async with AsyncExitStack() as attempt:
+                read, write = await attempt.enter_async_context(self._transport.open())
+                session = await attempt.enter_async_context(ClientSession(read, write))
+                await session.initialize()
+                self._stack = attempt.pop_all()
+                self._session = session
 
     async def close(self) -> None:
         await self._stack.aclose()
