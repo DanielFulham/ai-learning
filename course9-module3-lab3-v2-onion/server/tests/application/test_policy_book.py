@@ -80,7 +80,7 @@ def test_given_a_file_rule_when_all_policies_are_listed_then_defaults_and_rules_
         "write_file": Policy.ALLOW,
         "delete_file": Policy.DENY,
         "execute_command": Policy.DENY,
-        "read_audit_log": Policy.ALLOW,
+        "read_audit_log": Policy.ASK,
         "read_permissions": Policy.ALLOW,
         "TEST_NEW_TOOL": Policy.DENY,
     }

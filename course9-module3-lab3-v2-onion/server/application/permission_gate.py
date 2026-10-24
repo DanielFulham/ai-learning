@@ -1,4 +1,5 @@
 import json
+import logging
 import secrets
 import time
 from collections.abc import Callable, Mapping
@@ -12,6 +13,8 @@ from domain.policy import Policy
 from interfaces.audit_log_interface import AuditLogInterface
 from interfaces.policy_store_interface import InvalidPolicyError
 
+_logger = logging.getLogger(__name__)
+
 
 class PermissionGate:
     """Decides whether a tool call may run, and audits each step. Never waits for a person.
@@ -22,6 +25,10 @@ class PermissionGate:
     any use spends it, and an unknown, spent, expired or mismatched token is refused. At most
     `max_pending` questions are held, so unanswered ones cannot grow memory without limit. There
     is no "approved" flag a caller can pass.
+
+    The audit record of an intent (allowed, asked, approved, refused) is written before the tool
+    runs, and a failure there stops the call. The record of how the tool ended is written after;
+    if that one fails the result is still returned and the failure is logged.
 
     The token shows the server asked this question. It does not show a person answered it: a
     client that holds the token can send "accept" itself, so the user has to trust the client.
@@ -100,13 +107,24 @@ class PermissionGate:
         try:
             text = action()
         except Exception as error:  # a tool failure is reported, not raised
-            self._record(tool, arguments_json, AuditEvent.FAILED, str(error))
+            self._record_completion(tool, arguments_json, AuditEvent.FAILED, str(error))
             return Failed(f"{tool} failed: {error}")
-        self._record(tool, arguments_json, AuditEvent.SUCCEEDED, "")
+        self._record_completion(tool, arguments_json, AuditEvent.SUCCEEDED, "")
         return Completed(text)
 
     def _record(self, tool: str, arguments_json: str, event: AuditEvent, detail: str) -> None:
         self._audit_log.append(tool, arguments_json, event.value, detail)
+
+    def _record_completion(
+        self, tool: str, arguments_json: str, event: AuditEvent, detail: str
+    ) -> None:
+        """Record how a tool ended. The tool has already run, so a log failure here cannot undo
+        it: the result is still returned and the gap goes to the server's own log. Records made
+        before the tool runs are not treated this way; if they fail, the tool does not run."""
+        try:
+            self._record(tool, arguments_json, event, detail)
+        except OSError:
+            _logger.exception("Could not audit %s for %s after it ran", event.value, tool)
 
     def _spend(self, token: str | None, tool: str, arguments_json: str) -> bool:
         """Use up a token. True only if it was issued for this call and has not expired."""

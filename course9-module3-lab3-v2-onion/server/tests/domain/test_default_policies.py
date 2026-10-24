@@ -11,7 +11,7 @@ from domain.policy import Policy
         ("write_file", Policy.ASK),
         ("delete_file", Policy.DENY),
         ("execute_command", Policy.DENY),
-        ("read_audit_log", Policy.ALLOW),
+        ("read_audit_log", Policy.ASK),
         ("read_permissions", Policy.ALLOW),
     ],
 )

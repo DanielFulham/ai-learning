@@ -342,3 +342,46 @@ def test_given_the_gate_when_decide_and_execute_are_inspected_then_neither_waits
     """Pins the stateless design: no coroutine here ever blocks on a person."""
     assert not inspect.iscoroutinefunction(PermissionGate.decide)
     assert not inspect.iscoroutinefunction(PermissionGate.execute)
+
+
+# --- audit failures after the tool has run ---------------------------------------------------
+
+
+def _audit_failing_on(event: str) -> MagicMock:
+    audit = _make_audit()
+
+    def append(tool: str, arguments_json: str, recorded: str, detail: str) -> None:
+        if recorded == event:
+            raise OSError("TEST_DISK_FULL")
+
+    audit.append.side_effect = append
+    return audit
+
+
+def test_given_the_log_fails_after_a_successful_tool_when_executed_then_the_result_still_comes_back(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Pins F-L47-30: the change happened, so the client is told it did, and the gap is logged."""
+    gate = _make_gate("allow", _audit_failing_on("succeeded"))
+    result = gate.execute("TEST_TOOL", {}, _make_action("TEST_RESULT"))
+    assert result == Completed("TEST_RESULT")
+    assert "TEST_TOOL" in caplog.text
+    assert "succeeded" in caplog.text
+
+
+def test_given_the_log_fails_after_a_failed_tool_when_executed_then_the_failure_comes_back() -> (
+    None
+):
+    action = _make_action()
+    action.side_effect = FileNotFoundError("TEST_MISSING")
+    gate = _make_gate("allow", _audit_failing_on("failed"))
+    result = gate.execute("TEST_TOOL", {}, action)
+    assert isinstance(result, Failed)
+    assert "TEST_MISSING" in result.reason
+
+
+def test_given_the_log_fails_before_the_tool_when_decided_then_the_call_is_not_allowed() -> None:
+    """Pins fail-closed: with no record of the intent, the tool must not run."""
+    gate = _make_gate("allow", _audit_failing_on("allowed"))
+    with pytest.raises(OSError, match="TEST_DISK_FULL"):
+        _decide(gate)

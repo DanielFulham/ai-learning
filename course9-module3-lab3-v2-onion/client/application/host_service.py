@@ -178,7 +178,11 @@ class HostService:
             raw_arguments: dict[object, object] = nested
         else:
             raw_arguments = {k: v for k, v in arguments.items() if k not in ("name", "arguments")}
-        prompt_arguments = {str(k): str(v) for k, v in raw_arguments.items()}
+        prompt_arguments: dict[str, str] = {}
+        for key, value in raw_arguments.items():
+            if not isinstance(key, str) or not isinstance(value, str):
+                return f"Error: prompt argument {key!r} must be text, not {value!r}"
+            prompt_arguments[key] = value
         try:
             rendered = to_rendered_prompt(await self._session.get_prompt(name, prompt_arguments))
             result = f"Prompt: {name}\n\n"

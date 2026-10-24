@@ -338,7 +338,7 @@ def test_given_an_ask_policy_for_the_audit_log_and_no_approval_when_read_then_it
 
 def test_given_an_allowed_resource_read_when_it_finishes_then_the_read_is_audited() -> None:
     """Pins that reading the policy or the log leaves a trace in the log itself."""
-    fixture = _Fixture()
+    fixture = _Fixture({"read_audit_log": "allow"})
     _read_resource_text(fixture, "file://audit/log")
     entries = fixture.audit.append.call_args_list
     assert [(entry.args[0], entry.args[2]) for entry in entries] == [

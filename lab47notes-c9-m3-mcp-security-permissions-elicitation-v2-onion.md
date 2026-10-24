@@ -2,7 +2,7 @@
 
 > Code: [`course9-module3-lab3-v2-onion/`](course9-module3-lab3-v2-onion/)
 
-[V1](lab47notes-c9-m3-mcp-security-permissions-elicitation-v1.md) is the lab as written, with 18 findings. This is the same system as two separate onion-layered apps on the latest versions, with those findings fixed from the start: a FastMCP server that enforces the policy itself and asks the user through MCP elicitation, and a client with a Gradio page and a Gradio chat host for `gpt-4o-mini`. 469 tests pass without a key or a network: 231 on the server (232 collected, one skipped) and 238 on the client.
+[V1](lab47notes-c9-m3-mcp-security-permissions-elicitation-v1.md) is the lab as written, with 18 findings. This is the same system as two separate onion-layered apps on the latest versions, with those findings fixed from the start: a FastMCP server that enforces the policy itself and asks the user through MCP elicitation, and a client with a Gradio page and a Gradio chat host for `gpt-4o-mini`. 473 tests pass without a key or a network: 234 on the server (235 collected, one skipped) and 239 on the client.
 
 The most useful result: `ctx.elicit` does not work on the 2026-07-28 protocol, which the latest SDKs negotiate by default. A tool now returns an "input required" result, the client answers and retries, and the approval can be bound to the exact arguments the user was shown (F-L47-19, F-L47-21).
 
@@ -54,7 +54,7 @@ Each app has its own layers, config and pins, and shares no code with the other.
 | 6 no path containment | `LocalFileStore` resolves and checks every path. Seen: `../state/audit.log` and `C:/Windows/win.ini` refused. |
 | 7 audit log gaps | One writer, JSON lines, the arguments and an event per step. Seen in the real trail. |
 | 8 policy and log reachable, forged lines | They live in `state/`, outside the tools' `workspace/`; JSON escapes newlines. |
-| 9 resources unchecked | Both resources go through the gate, but default to `allow`, so they are open out of the box. |
+| 9 resources unchecked | Both resources go through the gate. The audit log, which lists every call's arguments, asks by default; the policy view is allowed. |
 | 10 risk assessment discarded | Dropped. Risk is each tool's MCP annotations plus a "(Risk: ...)" label. |
 | 11 `OpenAI()` ignores `.env` | The host entry point calls `load_dotenv()`. |
 | 12 UTF-16 from `echo >` | UTF-8 throughout; a UTF-16 policy file is refused. `read_file` on one was not run. |
@@ -86,6 +86,8 @@ Other differences: the GUI's "Approve & Execute" is a panel showing the waiting 
 
 **F-L47-29 - Gradio answers arrive on worker threads, and the approval wait did not wake.** Found in Copilot's second review and reproduced: `respond` called from a thread left the waiting call asleep until its timeout, because an asyncio future cannot be completed from another thread. The broker now claims a question under a lock and hands the answer to the waiting loop with `call_soon_threadsafe`, so a question is answered once and the call wakes at once. Tested with a real worker thread. The same fix covers the page-close cancel. The audit log's read errors also now name the file only, as the policy store's do.
 
+**F-L47-30 - three more review fixes.** (a) The audit log was readable without approval by default, although it holds every call's arguments, including written file content. It now defaults to `ask`; set `read_audit_log` to `allow` to open it. (b) The audit line saying how a tool ended is written after the tool has run, so a full disk made the client see an error for a change that happened. The record of intent (allowed, asked, approved, refused) is still written first and a failure there stops the call; a failure writing the ending record now returns the result and is logged to the server's own log. The gap in the audit file is real in that case. (c) The host turned a model's non-text prompt argument into text (1 became "1"); it now returns an error to the model, as the GUI does.
+
 ## Tests
 
 Names read `test_given_..._when_..._then_...`, written test first, with a docstring on each design pin. The server tests drive the real server with an in-memory client and a real elicitation handler. The client tests run the official client against an in-process server, plus one real stdio subprocess. Mutation checks on scratchpad copies covered the policy, the gate, the audit log, the file store, the container, the session, the broker and the host page; all were caught after F-L47-26.
@@ -104,9 +106,7 @@ Python from my shell could not verify `api.openai.com` (the same TLS inspection)
 
 - `read_file` on a UTF-16 file, a second real browser tab, closing a real tab, and running from Git Bash.
 - Closing the MCP session when a page app exits: neither app calls `close()` at shutdown; the stdio server is left to end when its pipe closes with the process. I did not check that the child process always exits.
-- Audit write failure: the `succeeded` line is written after the tool has run, so if the log cannot be written the client gets an error for a change that did happen. The tool's effect is not undone.
 - Client trust: the server cannot tell a person's answer from a client's. Anything that can talk to the server and holds a live token can accept.
-- The resources default to `allow`: the audit log, which lists arguments, is readable out of the box. Set `read_audit_log` to `ask` or `deny` to change that.
 - Stopping a standalone server: Ctrl+C prints a traceback, and a stop signal sent while the client's pipe is still open did not end the process on Windows in my probe. The client stops the server by closing the pipe, which exits cleanly. I tried handling stop signals and dropped it; it is not resolved.
 - Authentication and HTTPS: the server is a local stdio subprocess for one user.
 - The 2026-07-28 protocol text; the notes rely on the installed libraries' source and my runs. Both major versions are new, and the pins are exact.

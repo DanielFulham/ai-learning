@@ -359,3 +359,13 @@ def test_given_no_final_reply_after_the_tools_when_chatting_then_an_error_text_c
 def test_given_an_empty_model_answer_when_chatting_then_it_is_never_none_or_blank() -> None:
     reply = _chat(HostService(_make_session(), _make_model(ModelReply(text=None))), "TEST")
     assert reply.text == "The model returned no text."
+
+
+def test_given_the_get_prompt_helper_with_a_non_text_argument_when_run_then_it_is_refused() -> None:
+    """Pins that the host never rewrites what the model asked for: 1 is not "1"."""
+    session = _make_session()
+    arguments: dict[str, object] = {"name": "TEST_PROMPT", "arguments": {"topic": 1}}
+    text = _execute(HostService(session, _make_model()), "mcp_get_prompt", arguments)
+    assert "topic" in text
+    assert text.startswith("Error")
+    session.get_prompt.assert_not_called()
