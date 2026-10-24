@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
 from fastmcp import Client, FastMCP
 from fastmcp.client.elicitation import ElicitResult
 from mcp.types import CallToolResult, TextContent
@@ -66,6 +67,36 @@ def test_given_the_default_config_when_the_folders_are_compared_then_neither_hol
     """Pins F-L47-8: the policy file and audit log sit outside the folder the file tools reach."""
     assert not config.STATE_DIR.is_relative_to(config.ROOT_DIR)
     assert not config.ROOT_DIR.is_relative_to(config.STATE_DIR)
+
+
+def test_given_a_state_folder_inside_the_root_when_the_server_is_built_then_it_is_refused(
+    tmp_path: Path,
+) -> None:
+    """Pins F-L47-8 at build time: a wrong path must not put the policy where tools can reach."""
+    with pytest.raises(ValueError, match="state"):
+        initialise_server(root_dir=tmp_path, state_dir=tmp_path / "state")
+
+
+def test_given_the_same_folder_for_root_and_state_when_the_server_is_built_then_it_is_refused(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(ValueError, match="state"):
+        initialise_server(root_dir=tmp_path, state_dir=tmp_path)
+
+
+def test_given_a_root_folder_inside_the_state_folder_when_the_server_is_built_then_it_is_allowed(
+    tmp_path: Path,
+) -> None:
+    assert isinstance(initialise_server(root_dir=tmp_path / "files", state_dir=tmp_path), FastMCP)
+
+
+def test_given_a_state_folder_inside_the_root_when_a_file_store_is_injected_then_no_check_is_made(
+    tmp_path: Path,
+) -> None:
+    """The guard protects the default file store only; an injected store owns its own reach."""
+    store = MagicMock(spec=FileStoreInterface)
+    server = initialise_server(root_dir=tmp_path, state_dir=tmp_path / "state", file_store=store)
+    assert isinstance(server, FastMCP)
 
 
 def test_given_an_ask_write_when_approved_then_the_file_lands_in_the_root_folder(

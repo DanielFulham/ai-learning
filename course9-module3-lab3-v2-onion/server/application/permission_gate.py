@@ -1,5 +1,6 @@
-import hashlib
 import json
+import secrets
+import time
 from collections.abc import Callable, Mapping
 
 from application.policy_book import PolicyBook
@@ -13,18 +14,38 @@ from interfaces.policy_store_interface import InvalidPolicyError
 
 
 class PermissionGate:
-    """Decides whether a tool call may run, and audits each step. Stateless and synchronous.
+    """Decides whether a tool call may run, and audits each step. Never waits for a person.
 
-    The gate never waits for a person. When the policy says ask, `decide` returns an `AskUser`
-    carrying a token bound to the exact tool and arguments. The client's answer comes back on a
-    retry together with that token, and only a matching token lets an accept through. There is
-    no "approved" flag a caller can pass. Every path that is not an explicit allow, or an
-    accept with the matching token, leaves the tool unrun.
+    When the policy says ask, `decide` returns an `AskUser` carrying a random token that the gate
+    remembers, with the tool and arguments it was issued for. The client's answer comes back on a
+    retry with that token. A token works once, for those exact arguments, within `ttl_seconds`;
+    any use spends it, and an unknown, spent, expired or mismatched token is refused. At most
+    `max_pending` questions are held, so unanswered ones cannot grow memory without limit. There
+    is no "approved" flag a caller can pass.
+
+    The token shows the server asked this question. It does not show a person answered it: a
+    client that holds the token can send "accept" itself, so the user has to trust the client.
     """
 
-    def __init__(self, policy_book: PolicyBook, audit_log: AuditLogInterface) -> None:
+    def __init__(
+        self,
+        policy_book: PolicyBook,
+        audit_log: AuditLogInterface,
+        ttl_seconds: float = 300.0,
+        max_pending: int = 100,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
         self._policy_book = policy_book
         self._audit_log = audit_log
+        self._ttl_seconds = ttl_seconds
+        self._max_pending = max_pending
+        self._clock = clock
+        self._pending: dict[str, tuple[str, str, float]] = {}
+
+    def pending_count(self) -> int:
+        """How many questions are waiting for an answer, not counting expired ones."""
+        self._drop_expired()
+        return len(self._pending)
 
     def decide(
         self,
@@ -47,14 +68,22 @@ class PermissionGate:
             self._record(tool, arguments_json, AuditEvent.ALLOWED, "policy: allow")
             return RunNow()
 
-        expected_token = _token_for(tool, arguments_json)
         if outcome is None:
+            self._drop_expired()
+            if len(self._pending) >= self._max_pending:
+                self._record(tool, arguments_json, AuditEvent.DENIED, "too many open questions")
+                return Refuse(f"Too many approvals are waiting, so {tool} was not run.")
+            issued = secrets.token_urlsafe(32)
+            self._pending[issued] = (tool, arguments_json, self._clock() + self._ttl_seconds)
             self._record(tool, arguments_json, AuditEvent.APPROVAL_REQUESTED, "policy: ask")
-            return AskUser(f"Run {tool} with arguments {arguments_json}?", expected_token)
-        if token != expected_token:
-            detail = "the approval does not match these arguments"
+            return AskUser(f"Run {tool} with arguments {arguments_json}?", issued)
+        if not self._spend(token, tool, arguments_json):
+            detail = "the approval is missing, used, expired or for different arguments"
             self._record(tool, arguments_json, AuditEvent.DENIED, detail)
-            return Refuse(f"The approval was for different arguments, so {tool} was not run.")
+            return Refuse(
+                f"The approval was missing, used, expired or for different arguments, "
+                f"so {tool} was not run."
+            )
         if outcome is ApprovalOutcome.DECLINED:
             self._record(tool, arguments_json, AuditEvent.DECLINED, "declined by the user")
             return Refuse(f"The user declined to run {tool}.")
@@ -79,6 +108,21 @@ class PermissionGate:
     def _record(self, tool: str, arguments_json: str, event: AuditEvent, detail: str) -> None:
         self._audit_log.append(tool, arguments_json, event.value, detail)
 
+    def _spend(self, token: str | None, tool: str, arguments_json: str) -> bool:
+        """Use up a token. True only if it was issued for this call and has not expired."""
+        if token is None:
+            return False
+        issued = self._pending.pop(token, None)
+        if issued is None:
+            return False
+        issued_tool, issued_arguments, expires_at = issued
+        return (
+            issued_tool == tool
+            and issued_arguments == arguments_json
+            and self._clock() < expires_at
+        )
 
-def _token_for(tool: str, arguments_json: str) -> str:
-    return hashlib.sha256(f"{tool}\n{arguments_json}".encode()).hexdigest()
+    def _drop_expired(self) -> None:
+        now = self._clock()
+        for token in [t for t, (_, _, expires_at) in self._pending.items() if now >= expires_at]:
+            del self._pending[token]

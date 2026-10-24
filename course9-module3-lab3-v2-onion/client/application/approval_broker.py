@@ -36,6 +36,12 @@ class ApprovalBroker(ApprovalSourceInterface):
         ones are removed, so this is also how a leak would show."""
         return len(self._waiting)
 
+    def cancel_all(self) -> None:
+        """Answer every waiting question with cancel, for a page that has closed."""
+        for _, future in self._waiting:
+            if not future.done():
+                future.set_result("cancel")
+
     def pending_message(self) -> str | None:
         """The oldest question still waiting for an answer, or None."""
         for message, future in self._waiting:

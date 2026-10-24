@@ -28,6 +28,10 @@ def initialise_server(
     different folder, so the tools cannot read, overwrite or delete either of them.
     """
     if file_store is None:
+        resolved_root = root_dir.resolve()
+        resolved_state = state_dir.resolve()
+        if resolved_state == resolved_root or resolved_state.is_relative_to(resolved_root):
+            raise ValueError("The state folder must be outside the root folder the tools can reach")
         file_store = LocalFileStore(root_dir)
     if policy_store is None:
         policy_store = JsonPolicyStore(state_dir / config.POLICY_FILE_NAME)

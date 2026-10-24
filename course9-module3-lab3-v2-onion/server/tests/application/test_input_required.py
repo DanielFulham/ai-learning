@@ -1,5 +1,5 @@
 import pytest
-from mcp_types import (
+from mcp.types import (
     CreateMessageResult,
     ElicitRequest,
     ElicitRequestFormParams,

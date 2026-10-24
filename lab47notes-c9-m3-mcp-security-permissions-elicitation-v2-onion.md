@@ -2,7 +2,7 @@
 
 > Code: [`course9-module3-lab3-v2-onion/`](course9-module3-lab3-v2-onion/)
 
-[V1](lab47notes-c9-m3-mcp-security-permissions-elicitation-v1.md) is the lab as written, with 18 findings. This is the same system as two separate onion-layered apps on the latest versions, with those findings fixed from the start: a FastMCP server that enforces the policy itself and asks the user through MCP elicitation, and a client with a Gradio page and a Gradio chat host for `gpt-4o-mini`. 441 tests pass without a key or a network: 214 on the server (215 collected, one skipped) and 227 on the client.
+[V1](lab47notes-c9-m3-mcp-security-permissions-elicitation-v1.md) is the lab as written, with 18 findings. This is the same system as two separate onion-layered apps on the latest versions, with those findings fixed from the start: a FastMCP server that enforces the policy itself and asks the user through MCP elicitation, and a client with a Gradio page and a Gradio chat host for `gpt-4o-mini`. 462 tests pass without a key or a network: 229 on the server (230 collected, one skipped) and 233 on the client.
 
 The most useful result: `ctx.elicit` does not work on the 2026-07-28 protocol, which the latest SDKs negotiate by default. A tool now returns an "input required" result, the client answers and retries, and the approval can be bound to the exact arguments the user was shown (F-L47-19, F-L47-21).
 
@@ -48,7 +48,7 @@ Each app has its own layers, config and pins, and shares no code with the other.
 |---|---|
 | 1 no real elicitation | Real elicitation on the modern path (F-L47-19). |
 | 2 server enforces nothing | Every tool goes through one gate on the server. |
-| 3 approval not tied to what was shown | The question names the tool and arguments; an accept needs a token bound to them (F-L47-21). Seen in the real host run. |
+| 3 approval not tied to what was shown | The question names the tool and arguments; an accept needs a single-use token the server issued for them (F-L47-21). Seen in the real host run and over the wire. |
 | 4 a deny cannot be approved | Kept on purpose, now pinned by tests. Set a tool to `ask` to get a confirmation. |
 | 5 bad policy values, argument-level rules | A bad value, a bad file or an argument-level key invalidates the file; every call is refused. |
 | 6 no path containment | `LocalFileStore` resolves and checks every path. Seen: `../state/audit.log` and `C:/Windows/win.ini` refused. |
@@ -68,7 +68,7 @@ Other differences: the GUI's "Approve & Execute" is a panel showing the waiting 
 
 **F-L47-20 - the official `mcp` 2.3.0 `Client` runs the retry loop; the low-level `ClientSession` negotiated the old handshake.** The `Client` negotiated 2026-07-28 and answered the question over stdio (Seen). My first spike used `ClientSession`, and `ctx.elicit` worked there, which implies the old handshake (inferred; I did not print that version).
 
-**F-L47-21 - an approval can be bound to the exact arguments.** The gate returns a SHA-256 of the tool and sorted arguments as `request_state`, which the framework seals. An accept counts only with the matching token. Seen at the gate in tests; a replay with changed arguments over the wire was not run.
+**F-L47-21 - an approval is a single-use token the server issued.** My first version was a SHA-256 of the tool and arguments, which any client can compute, so a stolen or replayed accept worked (Copilot flagged it; I confirmed the replay over stdio: the same accepted state wrote twice). The gate now issues a random token per question, remembers the tool and arguments it was for, and accepts it once, within 300 seconds, for those exact arguments. Any use spends it, and at most 100 questions are held. Seen over stdio: a forged state, no state, a replayed state and a state used with changed arguments were all refused. For changed arguments the framework's own check refused first ("request binding") and the token was still usable afterwards. A token shows the server asked; it does not show a person answered, so a client that holds one can accept for the user (see the end).
 
 **F-L47-22 - the SDK client must be closed by the task that opened it.** Lab 46 left this open. `McpSdkSession` now runs the client in one dedicated task, so `connect()` and `close()` work from any task (Seen in tests).
 
@@ -80,6 +80,10 @@ Other differences: the GUI's "Approve & Execute" is a panel showing the waiting 
 
 **F-L47-26 - three of my tests passed when they should have failed.** Mutation checks found the connect-lock test, the abandoned-question test and the path-leak tests (Windows doubles backslashes inside an `OSError` message, so a full-path comparison could not see the leak). All three were strengthened and re-checked. A mutation helper of mine also silently did nothing twice; it now stops if the text is not found.
 
+**F-L47-27 - a closed page left its tool call waiting.** Found in Copilot's review. Closing a tab left the question pending for the full 300 seconds. Each page now drops its desk when it unloads, and that cancels what was waiting. Tested at the broker, the desks and both pages; the unload event itself was not triggered by closing a real tab.
+
+**F-L47-28 - smaller review fixes.** A policy path that is a folder, or a file that vanishes mid-read, now refuses or returns no rules instead of crashing, and the error no longer carries the server's absolute path. The server refuses to start if its state folder is inside the folder the tools can reach. The code imports `mcp.types`, not the `mcp_types` package it re-exports.
+
 ## Tests
 
 Names read `test_given_..._when_..._then_...`, written test first, with a docstring on each design pin. The server tests drive the real server with an in-memory client and a real elicitation handler. The client tests run the official client against an in-process server, plus one real stdio subprocess. Mutation checks on scratchpad copies covered the policy, the gate, the audit log, the file store, the container, the session, the broker and the host page; all were caught after F-L47-26.
@@ -90,13 +94,14 @@ Seen here, Windows and PowerShell; the model's replies vary.
 
 - **Server over stdio:** `write_file` asked once with the arguments in the question, then wrote; `delete_file` denied; outside paths refused; the audit trail was complete.
 - **GUI app** (a real process, two `gradio_client` sessions): session B could not see or answer A's question; A's approve wrote the file, A's decline wrote nothing (file absent on disk).
-- **Host app with `gpt-4o-mini`:** A's chat showed the exact question; a "yes" from session B was an ordinary message and A's turn kept waiting; A's own "yes" wrote the file. A declined write wrote nothing. "Delete the file" came back as `Permission denied for tool: delete_file`.
+- **Host app with `gpt-4o-mini`** (driven through `gradio_client`): A's chat showed the exact question; a "yes" from session B was an ordinary message and A's turn kept waiting; A's own "yes" wrote the file. A declined write wrote nothing. "Delete the file" came back as `Permission denied for tool: delete_file`.
 
 Python from my shell could not verify `api.openai.com` (the same TLS inspection), so the host ran through a wrapper outside the repo that uses the system certificate store. That is my environment, not the app.
 
 ## What this doesn't cover
 
-- A replay with changed arguments over the wire, `read_file` on a UTF-16 file, a second real browser tab, and running from Git Bash.
+- `read_file` on a UTF-16 file, a second real browser tab, closing a real tab, and running from Git Bash.
+- Client trust: the server cannot tell a person's answer from a client's. Anything that can talk to the server and holds a live token can accept.
 - The resources default to `allow`: the audit log, which lists arguments, is readable out of the box. Set `read_audit_log` to `ask` or `deny` to change that.
 - Stopping a standalone server: Ctrl+C prints a traceback, and a stop signal sent while the client's pipe is still open did not end the process on Windows in my probe. The client stops the server by closing the pipe, which exits cleanly. I tried handling stop signals and dropped it; it is not resolved.
 - Authentication and HTTPS: the server is a local stdio subprocess for one user.

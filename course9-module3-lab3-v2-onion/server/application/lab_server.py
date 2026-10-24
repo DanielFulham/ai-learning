@@ -3,8 +3,7 @@ from collections.abc import Awaitable, Callable, Mapping
 
 from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
-from mcp.types import ToolAnnotations
-from mcp_types import InputRequiredResult
+from mcp.types import InputRequiredResult, ToolAnnotations
 
 from application.input_required import approval_request, outcome_from
 from application.permission_gate import PermissionGate

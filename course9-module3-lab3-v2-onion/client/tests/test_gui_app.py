@@ -60,3 +60,9 @@ def test_given_a_gui_service_when_the_page_is_built_then_it_builds_without_launc
     page = build_interface(MagicMock(spec=GuiServiceInterface), ApprovalDesks())
     assert isinstance(page, gr.Blocks)
     assert page.title == "MCP Permission Client"
+
+
+def test_given_the_gui_page_when_it_is_built_then_closing_the_page_is_handled() -> None:
+    """Pins F-L47-27: the page registers an unload handler so a closed tab frees its desk."""
+    page = build_interface(MagicMock(spec=GuiServiceInterface), ApprovalDesks())
+    assert any(("unload" in [t[1] for t in fn.targets]) for fn in page.fns.values())

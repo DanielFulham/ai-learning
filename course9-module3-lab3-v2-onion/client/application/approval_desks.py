@@ -20,7 +20,10 @@ class ApprovalDesks:
         return self._desks[session_id]
 
     def forget(self, session_id: str) -> None:
-        self._desks.pop(session_id, None)
+        """Drop a session's desk. A question still waiting on it is cancelled, not timed out."""
+        desk = self._desks.pop(session_id, None)
+        if desk is not None:
+            desk.cancel_all()
 
     def count(self) -> int:
         return len(self._desks)

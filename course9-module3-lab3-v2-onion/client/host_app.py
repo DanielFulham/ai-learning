@@ -13,7 +13,7 @@ from application.interfaces.approval_desk_interface import ApprovalDeskInterface
 from application.interfaces.host_service_interface import HostServiceInterface
 from cli_arguments import parse_arguments
 from domain.conversation import Message
-from page_session import session_id
+from page_session import forget_session, session_id
 
 Shown = list[dict[str, str | None]]
 
@@ -78,6 +78,9 @@ def build_interface(service: HostServiceInterface, desks: ApprovalDesks) -> gr.B
     async def reset_conversation() -> tuple[Shown, tuple[Message, ...]]:
         return [], ()
 
+    def close_page(request: gr.Request) -> None:
+        forget_session(desks, request)
+
     with gr.Blocks(title="MCP Permission AI Host") as interface:
         gr.Markdown(f"""
 # MCP Permission AI Host
@@ -109,6 +112,7 @@ the chat: reply **yes** or **no**.
 
         clear.click(fn=reset_conversation, outputs=[chatbot, conversation])
 
+    interface.unload(close_page)
     return interface
 
 

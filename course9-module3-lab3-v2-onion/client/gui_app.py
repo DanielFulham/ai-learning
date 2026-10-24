@@ -9,7 +9,7 @@ from application.interfaces.approval_desk_interface import ApprovalDeskInterface
 from application.interfaces.gui_service_interface import GuiServiceInterface
 from cli_arguments import parse_arguments
 from domain.approval import ApprovalChoice
-from page_session import session_id
+from page_session import forget_session, session_id
 
 _NO_QUESTION = "No question is waiting."
 
@@ -66,6 +66,9 @@ def build_interface(service: GuiServiceInterface, desks: ApprovalDesks) -> gr.Bl
 
     def decline(request: gr.Request) -> str:
         return answer_waiting_question(desk_for(request), ApprovalChoice.DECLINE)
+
+    def close_page(request: gr.Request) -> None:
+        forget_session(desks, request)
 
     with gr.Blocks(title="MCP Permission Client") as interface:
         gr.Markdown("""
@@ -182,6 +185,7 @@ The server decides what runs. When a tool needs your approval, the question appe
                 view_policy_btn.click(fn=view_policy, outputs=policy_output, api_name="view_policy")
                 view_audit_btn.click(fn=view_audit_log, outputs=audit_output, api_name="view_audit")
 
+    interface.unload(close_page)
     return interface
 
 

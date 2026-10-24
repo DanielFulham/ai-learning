@@ -158,3 +158,22 @@ def test_given_a_cancelled_call_when_it_stops_waiting_then_its_question_is_no_lo
         return broker.pending_message(), broker.respond(ApprovalChoice.ACCEPT)
 
     assert asyncio.run(run()) == (None, False)
+
+
+def test_given_waiting_questions_when_all_are_cancelled_then_each_call_gets_cancel() -> None:
+    """Pins F-L47-27: a closed page must release its waiting calls, never approve them."""
+
+    async def run() -> tuple[list[ApprovalAnswer], int, str | None]:
+        broker = ApprovalBroker()
+        first = asyncio.create_task(broker.decide("TEST_FIRST"))
+        second = asyncio.create_task(broker.decide("TEST_SECOND"))
+        await _let_tasks_run()
+        broker.cancel_all()
+        answers: list[ApprovalAnswer] = [await first, await second]
+        return answers, broker.waiting_count(), broker.pending_message()
+
+    assert asyncio.run(run()) == (["cancel", "cancel"], 0, None)
+
+
+def test_given_nothing_waiting_when_all_are_cancelled_then_nothing_breaks() -> None:
+    ApprovalBroker().cancel_all()

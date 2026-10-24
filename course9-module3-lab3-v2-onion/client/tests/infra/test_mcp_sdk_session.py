@@ -4,7 +4,7 @@ import pytest
 from mcp import StdioServerParameters
 from mcp.server.mcpserver import Context, MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
-from mcp_types import (
+from mcp.types import (
     ElicitRequest,
     ElicitRequestFormParams,
     ElicitResult,

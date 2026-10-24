@@ -1,4 +1,4 @@
-from mcp_types import (
+from mcp.types import (
     ElicitRequest,
     ElicitRequestFormParams,
     ElicitResult,

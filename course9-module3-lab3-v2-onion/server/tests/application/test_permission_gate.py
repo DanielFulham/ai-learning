@@ -1,3 +1,4 @@
+import hashlib
 import inspect
 from unittest.mock import MagicMock, call, create_autospec
 
@@ -118,26 +119,114 @@ def test_given_an_ask_policy_when_decided_then_the_request_is_audited() -> None:
     assert _events(audit) == ["approval_requested"]
 
 
-def test_given_the_same_call_when_asked_twice_then_the_token_is_the_same() -> None:
+def test_given_the_same_call_when_asked_twice_then_each_question_gets_its_own_token() -> None:
+    """Pins F-L47-28: tokens are random and server-issued, so none can be worked out in advance."""
     gate = _make_gate("ask")
-    assert _token_for(gate, arguments={"a": 1}) == _token_for(gate, arguments={"a": 1})
+    assert _token_for(gate, arguments={"a": 1}) != _token_for(gate, arguments={"a": 1})
 
 
-def test_given_different_arguments_when_asked_then_the_tokens_differ() -> None:
-    """Pins that the token is bound to the exact arguments the user is shown."""
+def test_given_a_token_when_it_is_read_then_it_is_not_derived_from_the_call() -> None:
+    """The old token was a hash of tool and arguments, which any client could compute itself."""
     gate = _make_gate("ask")
-    assert _token_for(gate, arguments={"a": 1}) != _token_for(gate, arguments={"a": 2})
+    token = _token_for(gate, arguments={"a": 1})
+    assert token != hashlib.sha256(b'TEST_TOOL\n{"a": 1}').hexdigest()
 
 
-def test_given_a_different_tool_when_asked_then_the_token_differs() -> None:
+def test_given_the_same_arguments_in_another_order_when_accepted_then_the_tool_may_run() -> None:
+    gate = _make_gate("ask")
+    token = _token_for(gate, arguments={"a": 1, "b": 2})
+    assert _decide(gate, ApprovalOutcome.ACCEPTED, token, arguments={"b": 2, "a": 1}) == RunNow()
+
+
+def test_given_an_accept_for_another_tool_when_decided_then_it_is_refused() -> None:
     gate = PermissionGate(_make_policy_book({"TEST_A": "ask", "TEST_B": "ask"}), _make_audit())
-    assert _token_for(gate, "TEST_A") != _token_for(gate, "TEST_B")
+    token = _token_for(gate, "TEST_A")
+    assert isinstance(_decide(gate, ApprovalOutcome.ACCEPTED, token, tool="TEST_B"), Refuse)
 
 
-def test_given_the_same_arguments_in_another_order_when_asked_then_the_token_is_the_same() -> None:
+def test_given_a_token_that_was_used_when_it_is_used_again_then_the_second_use_is_refused() -> None:
+    """Pins F-L47-28: one question, one answer. A replayed accept must not run the tool again."""
     gate = _make_gate("ask")
-    first = _token_for(gate, arguments={"a": 1, "b": 2})
-    assert first == _token_for(gate, arguments={"b": 2, "a": 1})
+    token = _token_for(gate)
+    assert _decide(gate, ApprovalOutcome.ACCEPTED, token) == RunNow()
+    assert isinstance(_decide(gate, ApprovalOutcome.ACCEPTED, token), Refuse)
+
+
+def test_given_a_declined_token_when_it_is_then_accepted_then_the_accept_is_refused() -> None:
+    gate = _make_gate("ask")
+    token = _token_for(gate)
+    _decide(gate, ApprovalOutcome.DECLINED, token)
+    assert isinstance(_decide(gate, ApprovalOutcome.ACCEPTED, token), Refuse)
+
+
+def test_given_a_token_used_with_other_arguments_when_used_again_correctly_then_it_is_gone() -> (
+    None
+):
+    """A wrong guess burns the token: the client has to be asked again."""
+    gate = _make_gate("ask")
+    token = _token_for(gate, arguments={"a": 1})
+    _decide(gate, ApprovalOutcome.ACCEPTED, token, arguments={"a": 2})
+    assert isinstance(_decide(gate, ApprovalOutcome.ACCEPTED, token, arguments={"a": 1}), Refuse)
+
+
+def test_given_a_token_past_its_lifetime_when_accepted_then_it_is_refused() -> None:
+    """Pins F-L47-28: an old question cannot be answered long after the user saw it."""
+    clock = [0.0]
+    gate = PermissionGate(
+        _make_policy_book({"TEST_TOOL": "ask"}),
+        _make_audit(),
+        ttl_seconds=60,
+        clock=lambda: clock[0],
+    )
+    token = _token_for(gate)
+    clock[0] = 61.0
+    assert isinstance(_decide(gate, ApprovalOutcome.ACCEPTED, token), Refuse)
+
+
+def test_given_a_token_inside_its_lifetime_when_accepted_then_the_tool_may_run() -> None:
+    clock = [0.0]
+    gate = PermissionGate(
+        _make_policy_book({"TEST_TOOL": "ask"}),
+        _make_audit(),
+        ttl_seconds=60,
+        clock=lambda: clock[0],
+    )
+    token = _token_for(gate)
+    clock[0] = 59.0
+    assert _decide(gate, ApprovalOutcome.ACCEPTED, token) == RunNow()
+
+
+def test_given_open_questions_when_counted_then_used_ones_are_not_held() -> None:
+    gate = _make_gate("ask")
+    first, _second = _token_for(gate), _token_for(gate)
+    assert gate.pending_count() == 2
+    _decide(gate, ApprovalOutcome.ACCEPTED, first)
+    assert gate.pending_count() == 1
+
+
+def test_given_too_many_open_questions_when_another_is_asked_then_it_is_refused() -> None:
+    """Pins F-L47-28: unanswered questions cannot grow the gate's memory without limit."""
+    gate = PermissionGate(_make_policy_book({"TEST_TOOL": "ask"}), _make_audit(), max_pending=2)
+    _token_for(gate)
+    _token_for(gate)
+    decision = _decide(gate)
+    assert isinstance(decision, Refuse)
+    assert gate.pending_count() == 2
+
+
+def test_given_a_full_gate_when_old_questions_expire_then_a_new_one_is_accepted() -> None:
+    clock = [0.0]
+    gate = PermissionGate(
+        _make_policy_book({"TEST_TOOL": "ask"}),
+        _make_audit(),
+        ttl_seconds=60,
+        max_pending=1,
+        clock=lambda: clock[0],
+    )
+    _token_for(gate)
+    clock[0] = 61.0
+    assert isinstance(_decide(gate), AskUser)
+    assert gate.pending_count() == 1
 
 
 def test_given_an_accept_with_the_matching_token_when_decided_then_the_tool_may_run() -> None:

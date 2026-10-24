@@ -24,6 +24,41 @@ def test_given_a_missing_file_when_loaded_then_the_file_is_not_created(tmp_path:
     assert not (tmp_path / "state").exists()
 
 
+def test_given_a_policy_path_that_is_a_folder_when_loaded_then_invalid_policy_is_raised(
+    tmp_path: Path,
+) -> None:
+    """Pins fail-closed: a path that cannot be read as a file is a refusal the gate can audit."""
+    (tmp_path / "permissions.json").mkdir()
+    with pytest.raises(InvalidPolicyError):
+        JsonPolicyStore(tmp_path / "permissions.json").load_rules()
+
+
+def test_given_a_policy_path_that_is_a_folder_when_loaded_then_the_message_hides_the_folder(
+    tmp_path: Path,
+) -> None:
+    """Pins that a refusal never carries the server's absolute path to the client."""
+    (tmp_path / "permissions.json").mkdir()
+    with pytest.raises(InvalidPolicyError) as error:
+        JsonPolicyStore(tmp_path / "permissions.json").load_rules()
+    assert "permissions.json" in str(error.value)
+    # Windows doubles backslashes inside OS error text, so look for a folder name, not the path.
+    assert tmp_path.name not in str(error.value)
+
+
+def test_given_the_file_vanishes_between_the_check_and_the_read_when_loaded_then_no_rules(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Pins the missing-file case without a race: read first, treat "not found" as no rules."""
+    path = tmp_path / "permissions.json"
+    path.write_text("{}", encoding="utf-8")
+
+    def vanished(self: Path, *args: object, **kwargs: object) -> str:
+        raise FileNotFoundError
+
+    monkeypatch.setattr(Path, "read_text", vanished)
+    assert JsonPolicyStore(path).load_rules() == {}
+
+
 def test_given_a_valid_file_when_loaded_then_the_rules_come_back_as_written(
     tmp_path: Path,
 ) -> None:
