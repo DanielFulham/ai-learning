@@ -2,7 +2,7 @@
 
 > Code: [`course9-module3-lab3-v2-onion/`](course9-module3-lab3-v2-onion/)
 
-[V1](lab47notes-c9-m3-mcp-security-permissions-elicitation-v1.md) is the lab as written, with 18 findings. This is the same system as two separate onion-layered apps on the latest versions, with those findings fixed from the start: a FastMCP server that enforces the policy itself and asks the user through MCP elicitation, and a client with a Gradio page and a Gradio chat host for `gpt-4o-mini`. 462 tests pass without a key or a network: 229 on the server (230 collected, one skipped) and 233 on the client.
+[V1](lab47notes-c9-m3-mcp-security-permissions-elicitation-v1.md) is the lab as written, with 18 findings. This is the same system as two separate onion-layered apps on the latest versions, with those findings fixed from the start: a FastMCP server that enforces the policy itself and asks the user through MCP elicitation, and a client with a Gradio page and a Gradio chat host for `gpt-4o-mini`. 469 tests pass without a key or a network: 231 on the server (232 collected, one skipped) and 238 on the client.
 
 The most useful result: `ctx.elicit` does not work on the 2026-07-28 protocol, which the latest SDKs negotiate by default. A tool now returns an "input required" result, the client answers and retries, and the approval can be bound to the exact arguments the user was shown (F-L47-19, F-L47-21).
 
@@ -84,6 +84,8 @@ Other differences: the GUI's "Approve & Execute" is a panel showing the waiting 
 
 **F-L47-28 - smaller review fixes.** A policy path that is a folder, or a file that vanishes mid-read, now refuses or returns no rules instead of crashing, and the error no longer carries the server's absolute path. The server refuses to start if its state folder is inside the folder the tools can reach. The code imports `mcp.types`, not the `mcp_types` package it re-exports.
 
+**F-L47-29 - Gradio answers arrive on worker threads, and the approval wait did not wake.** Found in Copilot's second review and reproduced: `respond` called from a thread left the waiting call asleep until its timeout, because an asyncio future cannot be completed from another thread. The broker now claims a question under a lock and hands the answer to the waiting loop with `call_soon_threadsafe`, so a question is answered once and the call wakes at once. Tested with a real worker thread. The same fix covers the page-close cancel. The audit log's read errors also now name the file only, as the policy store's do.
+
 ## Tests
 
 Names read `test_given_..._when_..._then_...`, written test first, with a docstring on each design pin. The server tests drive the real server with an in-memory client and a real elicitation handler. The client tests run the official client against an in-process server, plus one real stdio subprocess. Mutation checks on scratchpad copies covered the policy, the gate, the audit log, the file store, the container, the session, the broker and the host page; all were caught after F-L47-26.
@@ -101,6 +103,8 @@ Python from my shell could not verify `api.openai.com` (the same TLS inspection)
 ## What this doesn't cover
 
 - `read_file` on a UTF-16 file, a second real browser tab, closing a real tab, and running from Git Bash.
+- Closing the MCP session when a page app exits: neither app calls `close()` at shutdown; the stdio server is left to end when its pipe closes with the process. I did not check that the child process always exits.
+- Audit write failure: the `succeeded` line is written after the tool has run, so if the log cannot be written the client gets an error for a change that did happen. The tool's effect is not undone.
 - Client trust: the server cannot tell a person's answer from a client's. Anything that can talk to the server and holds a live token can accept.
 - The resources default to `allow`: the audit log, which lists arguments, is readable out of the box. Set `read_audit_log` to `ask` or `deny` to change that.
 - Stopping a standalone server: Ctrl+C prints a traceback, and a stop signal sent while the client's pipe is still open did not end the process on Windows in my probe. The client stops the server by closing the pipe, which exits cleanly. I tried handling stop signals and dropped it; it is not resolved.

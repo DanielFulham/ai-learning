@@ -1,9 +1,24 @@
 import asyncio
+import threading
 from collections import deque
+from dataclasses import dataclass
 
 from application.mappers import answer_from_choice
 from domain.approval import ApprovalChoice
 from interfaces.approval_source_interface import ApprovalAnswer, ApprovalSourceInterface
+
+
+@dataclass
+class _Waiting:
+    message: str
+    future: asyncio.Future[ApprovalAnswer]
+    loop: asyncio.AbstractEventLoop
+    claimed: bool = False
+
+
+def _set_if_open(future: asyncio.Future[ApprovalAnswer], answer: ApprovalAnswer) -> None:
+    if not future.done():
+        future.set_result(answer)
 
 
 class ApprovalBroker(ApprovalSourceInterface):
@@ -13,46 +28,68 @@ class ApprovalBroker(ApprovalSourceInterface):
     and calls `respond` from a button or a typed "yes". Questions are answered oldest first.
     A question nobody answers within `timeout_seconds` counts as a cancel, never an accept, and
     a question whose call was abandoned stops being pending.
+
+    Gradio runs button callbacks on worker threads, while `decide` waits on the event loop's
+    thread. So an answer is claimed under a lock and handed to the waiting loop with
+    `call_soon_threadsafe`; a question can be claimed once, by whichever thread gets there first.
     """
 
     def __init__(self, timeout_seconds: float = 300.0) -> None:
         self._timeout_seconds = timeout_seconds
-        self._waiting: deque[tuple[str, asyncio.Future[ApprovalAnswer]]] = deque()
+        self._lock = threading.Lock()
+        self._waiting: deque[_Waiting] = deque()
 
     async def decide(self, message: str) -> ApprovalAnswer:
-        future: asyncio.Future[ApprovalAnswer] = asyncio.get_running_loop().create_future()
-        entry = (message, future)
-        self._waiting.append(entry)
+        loop = asyncio.get_running_loop()
+        entry = _Waiting(message, loop.create_future(), loop)
+        with self._lock:
+            self._waiting.append(entry)
         try:
-            return await asyncio.wait_for(future, self._timeout_seconds)
+            return await asyncio.wait_for(entry.future, self._timeout_seconds)
         except TimeoutError:
             return "cancel"
         finally:
-            if entry in self._waiting:
-                self._waiting.remove(entry)
+            with self._lock:
+                if entry in self._waiting:
+                    self._waiting.remove(entry)
 
     def waiting_count(self) -> int:
         """How many questions the broker is still holding: answered, timed-out and abandoned
         ones are removed, so this is also how a leak would show."""
-        return len(self._waiting)
-
-    def cancel_all(self) -> None:
-        """Answer every waiting question with cancel, for a page that has closed."""
-        for _, future in self._waiting:
-            if not future.done():
-                future.set_result("cancel")
+        with self._lock:
+            return len(self._waiting)
 
     def pending_message(self) -> str | None:
         """The oldest question still waiting for an answer, or None."""
-        for message, future in self._waiting:
-            if not future.done():
-                return message
+        with self._lock:
+            for entry in self._waiting:
+                if not entry.claimed:
+                    return entry.message
         return None
 
     def respond(self, choice: ApprovalChoice) -> bool:
         """Answer the oldest waiting question. False means nothing was waiting."""
-        for _, future in self._waiting:
-            if not future.done():
-                future.set_result(answer_from_choice(choice))
-                return True
-        return False
+        with self._lock:
+            entry = next((e for e in self._waiting if not e.claimed), None)
+            if entry is None:
+                return False
+            entry.claimed = True
+        self._deliver(entry, answer_from_choice(choice))
+        return True
+
+    def cancel_all(self) -> None:
+        """Answer every waiting question with cancel, for a page that has closed."""
+        with self._lock:
+            entries = [e for e in self._waiting if not e.claimed]
+            for entry in entries:
+                entry.claimed = True
+        for entry in entries:
+            self._deliver(entry, "cancel")
+
+    @staticmethod
+    def _deliver(entry: _Waiting, answer: ApprovalAnswer) -> None:
+        try:
+            entry.loop.call_soon_threadsafe(_set_if_open, entry.future, answer)
+        except RuntimeError:
+            # The loop has closed, so the call that asked is gone and nobody is waiting.
+            pass

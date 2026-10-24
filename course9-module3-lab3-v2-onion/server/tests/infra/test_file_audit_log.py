@@ -107,3 +107,27 @@ def test_given_no_clock_when_appended_then_the_time_is_timezone_aware_utc(
     line = (tmp_path / "audit.log").read_text(encoding="utf-8").splitlines()[0]
     stamp = datetime.fromisoformat(json.loads(line)["time"])
     assert stamp.utcoffset() == UTC.utcoffset(None)
+
+
+def test_given_a_log_path_that_is_a_folder_when_read_then_the_error_names_only_the_file(
+    tmp_path: Path,
+) -> None:
+    """Pins F-L47-28: a read error must not tell the client where the server keeps its state."""
+    (tmp_path / "audit.log").mkdir()
+    with pytest.raises(OSError, match="audit.log") as error:
+        FileAuditLog(tmp_path / "audit.log").read_text()
+    # Windows doubles backslashes inside OS error text, so look for a folder name, not the path.
+    assert tmp_path.name not in str(error.value)
+
+
+def test_given_the_log_vanishes_between_the_check_and_the_read_when_read_then_it_is_empty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "audit.log"
+    path.write_text("x", encoding="utf-8")
+
+    def vanished(self: Path, *args: object, **kwargs: object) -> str:
+        raise FileNotFoundError
+
+    monkeypatch.setattr(Path, "read_text", vanished)
+    assert FileAuditLog(path).read_text() == ""

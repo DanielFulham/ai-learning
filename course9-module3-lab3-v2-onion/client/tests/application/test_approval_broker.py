@@ -1,4 +1,6 @@
 import asyncio
+import threading
+import time
 
 import pytest
 
@@ -177,3 +179,84 @@ def test_given_waiting_questions_when_all_are_cancelled_then_each_call_gets_canc
 
 def test_given_nothing_waiting_when_all_are_cancelled_then_nothing_breaks() -> None:
     ApprovalBroker().cancel_all()
+
+
+def test_given_a_question_waiting_when_a_worker_thread_responds_then_the_call_wakes_at_once() -> (
+    None
+):
+    """Pins F-L47-29: Gradio runs button callbacks on worker threads, not on the loop's thread."""
+
+    async def run() -> tuple[ApprovalAnswer, float]:
+        broker = ApprovalBroker(timeout_seconds=5)
+        task = asyncio.create_task(broker.decide("TEST_QUESTION"))
+        await _let_tasks_run()
+        started = time.monotonic()
+        threading.Timer(0.05, broker.respond, args=(ApprovalChoice.ACCEPT,)).start()
+        answer = await asyncio.wait_for(task, 2)
+        return answer, time.monotonic() - started
+
+    answer, waited = asyncio.run(run())
+    assert answer == "accept"
+    assert waited < 1
+
+
+def test_given_one_question_when_two_threads_respond_then_only_one_answer_counts() -> None:
+    """Pins F-L47-29: the second click must not also claim the same question."""
+
+    async def run() -> list[bool]:
+        broker = ApprovalBroker()
+        task = asyncio.create_task(broker.decide("TEST_QUESTION"))
+        await _let_tasks_run()
+        results: list[bool] = []
+        worker = threading.Thread(
+            target=lambda: results.extend(
+                [broker.respond(ApprovalChoice.ACCEPT), broker.respond(ApprovalChoice.DECLINE)]
+            )
+        )
+        worker.start()
+        await asyncio.to_thread(worker.join)
+        assert await asyncio.wait_for(task, 2) == "accept"
+        return results
+
+    assert asyncio.run(run()) == [True, False]
+
+
+def test_given_a_waiting_question_when_a_thread_cancels_all_then_the_call_wakes_at_once() -> None:
+    async def run() -> ApprovalAnswer:
+        broker = ApprovalBroker(timeout_seconds=5)
+        task = asyncio.create_task(broker.decide("TEST_QUESTION"))
+        await _let_tasks_run()
+        threading.Timer(0.05, broker.cancel_all).start()
+        return await asyncio.wait_for(task, 2)
+
+    assert asyncio.run(run()) == "cancel"
+
+
+def test_given_a_question_that_was_cancelled_when_the_user_responds_then_nothing_is_waiting() -> (
+    None
+):
+    async def run() -> tuple[bool, str | None]:
+        broker = ApprovalBroker()
+        task = asyncio.create_task(broker.decide("TEST_QUESTION"))
+        await _let_tasks_run()
+        broker.cancel_all()
+        late = broker.respond(ApprovalChoice.ACCEPT)
+        await task
+        return late, broker.pending_message()
+
+    assert asyncio.run(run()) == (False, None)
+
+
+def test_given_a_question_just_answered_when_asked_for_the_pending_one_then_there_is_none() -> None:
+    """Pins that a claimed question is hidden at once, before the waiting call has woken."""
+
+    async def run() -> str | None:
+        broker = ApprovalBroker()
+        task = asyncio.create_task(broker.decide("TEST_QUESTION"))
+        await _let_tasks_run()
+        broker.respond(ApprovalChoice.ACCEPT)
+        pending = broker.pending_message()
+        await task
+        return pending
+
+    assert asyncio.run(run()) is None

@@ -34,6 +34,12 @@ class FileAuditLog(AuditLogInterface):
             log_file.write(json.dumps(entry) + "\n")
 
     def read_text(self) -> str:
-        if not self._path.exists():
+        try:
+            return self._path.read_text(encoding="utf-8")
+        except FileNotFoundError:
             return ""
-        return self._path.read_text(encoding="utf-8")
+        except OSError as error:
+            # The OS message carries the absolute path, so only the kind of failure is reported.
+            raise OSError(
+                f"The audit log {self._path.name} could not be read ({type(error).__name__})"
+            ) from None
