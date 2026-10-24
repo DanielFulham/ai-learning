@@ -1,3 +1,5 @@
+import threading
+
 from application.approval_broker import ApprovalBroker
 from application.interfaces.approval_desk_interface import ApprovalDeskInterface
 
@@ -12,18 +14,22 @@ class ApprovalDesks:
 
     def __init__(self, timeout_seconds: float = 300.0) -> None:
         self._timeout_seconds = timeout_seconds
+        self._lock = threading.Lock()
         self._desks: dict[str, ApprovalBroker] = {}
 
     def desk_for(self, session_id: str) -> ApprovalDeskInterface:
-        if session_id not in self._desks:
-            self._desks[session_id] = ApprovalBroker(self._timeout_seconds)
-        return self._desks[session_id]
+        with self._lock:
+            if session_id not in self._desks:
+                self._desks[session_id] = ApprovalBroker(self._timeout_seconds)
+            return self._desks[session_id]
 
     def forget(self, session_id: str) -> None:
         """Drop a session's desk. A question still waiting on it is cancelled, not timed out."""
-        desk = self._desks.pop(session_id, None)
+        with self._lock:
+            desk = self._desks.pop(session_id, None)
         if desk is not None:
             desk.cancel_all()
 
     def count(self) -> int:
-        return len(self._desks)
+        with self._lock:
+            return len(self._desks)

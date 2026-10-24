@@ -13,6 +13,7 @@ from application.interfaces.approval_desk_interface import ApprovalDeskInterface
 from application.interfaces.host_service_interface import HostServiceInterface
 from cli_arguments import parse_arguments
 from domain.conversation import Message
+from page_lifecycle import serve
 from page_session import forget_session, session_id
 
 Shown = list[dict[str, str | None]]
@@ -62,6 +63,34 @@ async def chat_turn(
     yield [*shown, {"role": "assistant", "content": format_chat_reply(reply)}], reply.history
 
 
+async def guarded_chat_turn(
+    service: HostServiceInterface,
+    desk: ApprovalDeskInterface,
+    message: str,
+    shown: Shown,
+    conversation: tuple[Message, ...],
+) -> AsyncIterator[tuple[Shown, tuple[Message, ...]] | None]:
+    """`chat_turn`, with one ordinary turn at a time per session.
+
+    Two turns at once would each start from the same history and one would overwrite the other.
+    A message that arrives while a turn is running is not started: this yields None once. The
+    exception is the reply to a question that is waiting, which must get through while the turn
+    that asked is still running.
+    """
+    if desk.pending_message() is not None:
+        async for step in chat_turn(service, desk, message, shown, conversation):
+            yield step
+        return
+    if not desk.begin_turn():
+        yield None
+        return
+    try:
+        async for step in chat_turn(service, desk, message, shown, conversation):
+            yield step
+    finally:
+        desk.end_turn()
+
+
 def build_interface(service: HostServiceInterface, desks: ApprovalDesks) -> gr.Blocks:
     """The chat page. Gradio lives here and nowhere deeper."""
 
@@ -70,10 +99,14 @@ def build_interface(service: HostServiceInterface, desks: ApprovalDesks) -> gr.B
         shown: Shown,
         conversation: tuple[Message, ...],
         request: gr.Request,
-    ) -> AsyncIterator[tuple[Shown, tuple[Message, ...]]]:
+    ) -> AsyncIterator[tuple[object, object]]:
         desk = desks.desk_for(session_id(request))
-        async for step in chat_turn(service, desk, message, shown, conversation):
-            yield step
+        async for step in guarded_chat_turn(service, desk, message, shown, conversation):
+            if step is None:
+                gr.Warning("Still working on your last message. Wait for the reply, then send it.")
+                yield gr.skip(), gr.skip()
+            else:
+                yield step
 
     async def reset_conversation() -> tuple[Shown, tuple[Message, ...]]:
         return [], ()
@@ -119,8 +152,11 @@ the chat: reply **yes** or **no**.
 def main() -> None:
     load_dotenv()
     app = initialise_host(parse_arguments(sys.argv))
-    build_interface(app.service, app.desks).queue().launch(
-        server_name=config.UI_HOST, server_port=config.HOST_PORT
+    serve(
+        build_interface(app.service, app.desks),
+        app.shutdown,
+        config.UI_HOST,
+        config.HOST_PORT,
     )
 
 

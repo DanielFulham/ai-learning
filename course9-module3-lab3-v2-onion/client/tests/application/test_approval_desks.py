@@ -1,4 +1,8 @@
 import asyncio
+import threading
+import time
+
+import pytest
 
 from application.approval_broker import ApprovalBroker
 from application.approval_desks import ApprovalDesks
@@ -61,3 +65,28 @@ def test_given_a_session_with_a_waiting_question_when_forgotten_then_the_call_is
         return await asyncio.wait_for(task, 1)
 
     assert asyncio.run(run()) == "cancel"
+
+
+def test_given_two_threads_asking_for_a_new_session_at_once_when_both_look_up_then_it_is_one_desk(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Pins F-L47-31: Gradio callbacks run on worker threads, so first use must not race."""
+
+    class SlowBroker(ApprovalBroker):
+        def __init__(self, timeout_seconds: float = 300.0) -> None:
+            time.sleep(0.1)
+            super().__init__(timeout_seconds)
+
+    monkeypatch.setattr("application.approval_desks.ApprovalBroker", SlowBroker)
+    desks = ApprovalDesks()
+    found: list[ApprovalDeskInterface] = []
+    threads = [
+        threading.Thread(target=lambda: found.append(desks.desk_for("TEST_SESSION")))
+        for _ in range(2)
+    ]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert found[0] is found[1]
+    assert desks.count() == 1

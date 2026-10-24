@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from collections.abc import Sequence
 from contextlib import suppress
 from contextvars import ContextVar
@@ -32,6 +33,7 @@ ClientTarget = StdioServerParameters | MCPServer
 # The source that answers the server's questions for the call now in progress. The SDK runs its
 # callback in a child task of the call that triggered it, and a child task inherits this value,
 # so one shared connection can serve several users who are each asked only about their own calls.
+_logger = logging.getLogger(__name__)
 _approvals: ContextVar[ApprovalSourceInterface | None] = ContextVar("approvals", default=None)
 
 
@@ -87,6 +89,7 @@ class McpSdkSession(McpSessionInterface):
         self._client: Client | None = None
         self._runner: asyncio.Task[None] | None = None
         self._stop: asyncio.Event | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
         self._lock = asyncio.Lock()
 
     @classmethod
@@ -109,6 +112,7 @@ class McpSdkSession(McpSessionInterface):
                     await runner
                 raise
             self._client, self._runner, self._stop = client, runner, stop
+            self._loop = asyncio.get_running_loop()
 
     async def _run(self, ready: asyncio.Future[Client], stop: asyncio.Event) -> None:
         """Hold the client open from inside one task until told to stop."""
@@ -128,6 +132,26 @@ class McpSdkSession(McpSessionInterface):
         if runner is not None and stop is not None:
             stop.set()
             await runner
+
+    def shutdown(self, timeout_seconds: float = 10.0) -> None:
+        """Close from another thread by running `close()` on the loop that opened the client.
+
+        Must not be called from that loop's own thread. If the loop has already stopped or does
+        not answer in time, this gives up and logs it: exit should not hang or crash.
+        """
+        loop = self._loop
+        if loop is None or self._client is None:
+            return
+        try:
+            pending = asyncio.run_coroutine_threadsafe(self.close(), loop)
+        except RuntimeError:
+            _logger.warning("The MCP session's event loop is closed, so it was not closed cleanly")
+            return
+        try:
+            pending.result(timeout_seconds)
+        except TimeoutError:
+            pending.cancel()
+            _logger.warning("The MCP session did not close within %s seconds", timeout_seconds)
 
     def _require_client(self) -> Client:
         if self._client is None:

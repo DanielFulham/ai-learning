@@ -15,6 +15,14 @@ class ApprovalDeskInterface(ApprovalSourceInterface, Protocol):
         """The oldest question still waiting for an answer, or None."""
         ...
 
+    def begin_turn(self) -> bool:
+        """Claim the session's one ordinary turn. False means a turn is already running."""
+        ...
+
+    def end_turn(self) -> None:
+        """Give the turn back, whether it finished or failed."""
+        ...
+
     def respond(self, choice: ApprovalChoice) -> bool:
         """Answer the oldest waiting question. False means nothing was waiting."""
         ...

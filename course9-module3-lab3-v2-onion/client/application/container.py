@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import config
@@ -15,18 +16,22 @@ from interfaces.mcp_session_interface import McpSessionInterface
 
 @dataclass(frozen=True)
 class GuiApp:
-    """What the GUI entry point needs: the shared service and the per-session approval desks."""
+    """What the GUI entry point needs: the shared service, the per-session approval desks, and
+    `shutdown`, which closes the server connection when the app exits."""
 
     service: GuiServiceInterface
     desks: ApprovalDesks
+    shutdown: Callable[[], None]
 
 
 @dataclass(frozen=True)
 class HostApp:
-    """What the host entry point needs: the shared service and the per-session approval desks."""
+    """What the host entry point needs: the shared service, the per-session approval desks, and
+    `shutdown`, which closes the server connection when the app exits."""
 
     service: HostServiceInterface
     desks: ApprovalDesks
+    shutdown: Callable[[], None]
 
 
 def _default_launch() -> ServerLaunch:
@@ -51,7 +56,7 @@ def initialise_gui(
     if session is None:
         session = _build_session(launch or _default_launch())
     service = GuiService(session, config.POLICY_RESOURCE_URI, config.AUDIT_LOG_RESOURCE_URI)
-    return GuiApp(service, ApprovalDesks(config.APPROVAL_TIMEOUT_SECONDS))
+    return GuiApp(service, ApprovalDesks(config.APPROVAL_TIMEOUT_SECONDS), session.shutdown)
 
 
 def initialise_host(
@@ -67,4 +72,8 @@ def initialise_host(
         session = _build_session(launch or _default_launch())
     if chat_model is None:
         chat_model = OpenAiChatModel(config.MODEL_ID)
-    return HostApp(HostService(session, chat_model), ApprovalDesks(config.APPROVAL_TIMEOUT_SECONDS))
+    return HostApp(
+        HostService(session, chat_model),
+        ApprovalDesks(config.APPROVAL_TIMEOUT_SECONDS),
+        session.shutdown,
+    )

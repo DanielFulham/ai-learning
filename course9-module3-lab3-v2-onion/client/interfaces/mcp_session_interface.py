@@ -50,6 +50,11 @@ class McpSessionInterface(Protocol):
 
     async def close(self) -> None: ...
 
+    def shutdown(self) -> None:
+        """Close the connection from outside the session's own event loop, for example from the
+        main thread when the app exits. Does nothing if it was never connected."""
+        ...
+
     async def list_tools(self) -> list[RawTool]: ...
 
     async def call_tool(

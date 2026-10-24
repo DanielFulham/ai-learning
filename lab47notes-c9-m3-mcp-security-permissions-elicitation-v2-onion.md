@@ -2,7 +2,7 @@
 
 > Code: [`course9-module3-lab3-v2-onion/`](course9-module3-lab3-v2-onion/)
 
-[V1](lab47notes-c9-m3-mcp-security-permissions-elicitation-v1.md) is the lab as written, with 18 findings. This is the same system as two separate onion-layered apps on the latest versions, with those findings fixed from the start: a FastMCP server that enforces the policy itself and asks the user through MCP elicitation, and a client with a Gradio page and a Gradio chat host for `gpt-4o-mini`. 473 tests pass without a key or a network: 234 on the server (235 collected, one skipped) and 239 on the client.
+[V1](lab47notes-c9-m3-mcp-security-permissions-elicitation-v1.md) is the lab as written, with 18 findings. This is the same system as two separate onion-layered apps on the latest versions, with those findings fixed from the start: a FastMCP server that enforces the policy itself and asks the user through MCP elicitation, and a client with a Gradio page and a Gradio chat host for `gpt-4o-mini`. 497 tests pass without a key or a network: 235 on the server (236 collected, one skipped) and 262 on the client.
 
 The most useful result: `ctx.elicit` does not work on the 2026-07-28 protocol, which the latest SDKs negotiate by default. A tool now returns an "input required" result, the client answers and retries, and the approval can be bound to the exact arguments the user was shown (F-L47-19, F-L47-21).
 
@@ -88,6 +88,14 @@ Other differences: the GUI's "Approve & Execute" is a panel showing the waiting 
 
 **F-L47-30 - three more review fixes.** (a) The audit log was readable without approval by default, although it holds every call's arguments, including written file content. It now defaults to `ask`; set `read_audit_log` to `allow` to open it. (b) The audit line saying how a tool ended is written after the tool has run, so a full disk made the client see an error for a change that happened. The record of intent (allowed, asked, approved, refused) is still written first and a failure there stops the call; a failure writing the ending record now returns the result and is logged to the server's own log. The gap in the audit file is real in that case. (c) The host turned a model's non-text prompt argument into text (1 became "1"); it now returns an error to the model, as the GUI does.
 
+**F-L47-31 - the desk registry and the session hash.** Gradio callbacks run on different threads, so two first uses of a session could each make a desk and the answer would go to the wrong one; the registry now has a lock. A request with no session hash used to share one process-wide desk, so it could see and answer another caller's question; it is now refused.
+
+**F-L47-32 - two ordinary messages could run at once in the host chat.** Both read the same history and one overwrote the other. The chat event has no concurrency limit on purpose (a "yes" must arrive while a turn waits), so the guard is per session: a message that arrives while a turn runs, and no question is waiting, is not started and the page shows a warning. A reply to a waiting question is never blocked. Tested at the guard; the warning in a running page was not exercised.
+
+**F-L47-33 - the MCP session was never closed at exit.** `serve` now launches without blocking, waits, and on a stop closes the session and then the page, because the session lives on the page's event loop. Seen in a real run (real server over stdio, stop simulated by raising `KeyboardInterrupt` in the wait): two server processes while running, none after. A real Ctrl+C, a terminal close and a kill were not tried. The host also rejects a non-object `arguments` field for the prompt helper instead of replacing it with an empty one.
+
+**F-L47-34 - parent folders were created after the root check.** Another process could swap a new folder for a link in between. `write_text` now checks the root again once the folders exist and writes through the checked path. Tested by simulating the swap, since links cannot be made here without privileges. A swap in the instant between that check and the write is not covered, and closing it needs no-follow file opens that Windows does not offer.
+
 ## Tests
 
 Names read `test_given_..._when_..._then_...`, written test first, with a docstring on each design pin. The server tests drive the real server with an in-memory client and a real elicitation handler. The client tests run the official client against an in-process server, plus one real stdio subprocess. Mutation checks on scratchpad copies covered the policy, the gate, the audit log, the file store, the container, the session, the broker and the host page; all were caught after F-L47-26.
@@ -105,7 +113,7 @@ Python from my shell could not verify `api.openai.com` (the same TLS inspection)
 ## What this doesn't cover
 
 - `read_file` on a UTF-16 file, a second real browser tab, closing a real tab, and running from Git Bash.
-- Closing the MCP session when a page app exits: neither app calls `close()` at shutdown; the stdio server is left to end when its pipe closes with the process. I did not check that the child process always exits.
+- Stopping the page apps: only a simulated stop was run (F-L47-33), not a real Ctrl+C, a closed terminal or a kill. The host's "still working" warning was not seen in a running page.
 - Client trust: the server cannot tell a person's answer from a client's. Anything that can talk to the server and holds a live token can accept.
 - Stopping a standalone server: Ctrl+C prints a traceback, and a stop signal sent while the client's pipe is still open did not end the process on Windows in my probe. The client stops the server by closing the pipe, which exits cleanly. I tried handling stop signals and dropped it; it is not resolved.
 - Authentication and HTTPS: the server is a local stdio subprocess for one user.

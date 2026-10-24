@@ -72,3 +72,16 @@ def test_given_the_gui_app_when_two_sessions_ask_for_desks_then_they_get_differe
     first: ApprovalSourceInterface = app.desks.desk_for("TEST_SESSION_A")
     second: ApprovalSourceInterface = app.desks.desk_for("TEST_SESSION_B")
     assert first is not second
+
+
+def test_given_a_gui_app_when_it_is_shut_down_then_the_session_is_shut_down() -> None:
+    """Pins F-L47-33: the entry point can close the session without knowing what it is."""
+    session = _make_session()
+    initialise_gui(session=session).shutdown()
+    session.shutdown.assert_called_once_with()
+
+
+def test_given_a_host_app_when_it_is_shut_down_then_the_session_is_shut_down() -> None:
+    session = _make_session()
+    initialise_host(session=session, chat_model=MagicMock(spec=LlmChatModelInterface)).shutdown()
+    session.shutdown.assert_called_once_with()

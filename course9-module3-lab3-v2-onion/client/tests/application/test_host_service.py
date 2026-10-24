@@ -369,3 +369,22 @@ def test_given_the_get_prompt_helper_with_a_non_text_argument_when_run_then_it_i
     assert "topic" in text
     assert text.startswith("Error")
     session.get_prompt.assert_not_called()
+
+
+def test_given_the_get_prompt_helper_with_a_text_arguments_field_when_run_then_it_is_refused() -> (
+    None
+):
+    """Pins that a malformed `arguments` is reported, not replaced by an empty object."""
+    session = _make_session()
+    arguments: dict[str, object] = {"name": "TEST_PROMPT", "arguments": "bad"}
+    text = _execute(HostService(session, _make_model()), "mcp_get_prompt", arguments)
+    assert text.startswith("Error")
+    assert "arguments" in text
+    session.get_prompt.assert_not_called()
+
+
+def test_given_the_get_prompt_helper_with_empty_arguments_when_run_then_beside_works() -> None:
+    session = _make_session()
+    arguments: dict[str, object] = {"name": "TEST_PROMPT", "arguments": {}, "topic": "T"}
+    _execute(HostService(session, _make_model()), "mcp_get_prompt", arguments)
+    session.get_prompt.assert_awaited_once_with("TEST_PROMPT", {"topic": "T"})

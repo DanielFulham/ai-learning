@@ -2,12 +2,13 @@ import asyncio
 from unittest.mock import MagicMock
 
 import gradio as gr
+import pytest
 
 from application.approval_desks import ApprovalDesks
 from application.interfaces.approval_desk_interface import ApprovalDeskInterface
 from application.interfaces.host_service_interface import HostServiceInterface
 from domain.conversation import ChatReply, Message, ToolActivity
-from host_app import build_interface, chat_turn
+from host_app import build_interface, chat_turn, guarded_chat_turn
 
 _EARLIER = (Message(role="user", text="TEST_EARLIER"),)
 Shown = list[dict[str, str | None]]
@@ -134,3 +135,53 @@ def test_given_the_host_page_when_it_is_built_then_closing_the_page_is_handled()
     """Pins F-L47-27: the page registers an unload handler so a closed tab frees its desk."""
     page = build_interface(MagicMock(spec=HostServiceInterface), ApprovalDesks())
     assert any(("unload" in [t[1] for t in fn.targets]) for fn in page.fns.values())
+
+
+def _collect_guarded(
+    service: MagicMock, desk: MagicMock, message: str = "TEST_MESSAGE"
+) -> list[Step | None]:
+    async def collect() -> list[Step | None]:
+        return [step async for step in guarded_chat_turn(service, desk, message, [], _EARLIER)]
+
+    return asyncio.run(collect())
+
+
+def test_given_a_turn_already_running_when_a_new_message_arrives_then_it_is_not_started() -> None:
+    """Pins F-L47-32: a second ordinary message must not run beside the first."""
+    desk = _make_desk()
+    desk.begin_turn.return_value = False
+    service = _make_service()
+    assert _collect_guarded(service, desk) == [None]
+    service.chat.assert_not_called()
+    desk.end_turn.assert_not_called()
+
+
+def test_given_no_turn_running_when_a_message_arrives_then_the_turn_runs_and_is_ended() -> None:
+    desk = _make_desk()
+    desk.begin_turn.return_value = True
+    steps = _collect_guarded(_make_service(), desk)
+    assert steps[-1] is not None
+    desk.end_turn.assert_called_once_with()
+
+
+def test_given_a_turn_that_fails_when_it_ends_then_the_session_is_free_again() -> None:
+    desk = _make_desk()
+    desk.begin_turn.return_value = True
+    service = _make_service()
+    service.chat.side_effect = RuntimeError("TEST_FAILURE")
+    with pytest.raises(RuntimeError, match="TEST_FAILURE"):
+        _collect_guarded(service, desk)
+    desk.end_turn.assert_called_once_with()
+
+
+def test_given_a_question_waiting_when_a_message_arrives_then_it_is_an_answer_and_not_guarded() -> (
+    None
+):
+    """The reply to a waiting question must get through while the turn that asked is running."""
+    desk = _make_desk(pending="TEST_QUESTION")
+    desk.begin_turn.return_value = False
+    service = _make_service()
+    steps = _collect_guarded(service, desk, "yes")
+    assert steps[-1] is not None
+    service.chat.assert_awaited_once()
+    desk.begin_turn.assert_not_called()

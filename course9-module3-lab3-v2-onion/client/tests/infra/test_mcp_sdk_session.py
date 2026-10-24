@@ -1,4 +1,6 @@
 import asyncio
+import threading
+from collections.abc import Coroutine
 
 import pytest
 from mcp import StdioServerParameters
@@ -426,3 +428,74 @@ def test_given_a_prompt_when_fetched_with_arguments_then_the_rendered_messages_c
     description, messages = asyncio.run(run())
     assert description == "TEST_PROMPT_DESC"
     assert messages == [("user", "Review TEST_TOPIC")]
+
+
+# --- shutdown from outside the session's loop ---------------------------------------------
+
+
+async def _other_tasks() -> int:
+    current = asyncio.current_task()
+    return len([task for task in asyncio.all_tasks() if task is not current])
+
+
+class _LoopThread:
+    """An event loop running on its own thread, like the one Gradio serves a page on."""
+
+    def __init__(self) -> None:
+        self.loop = asyncio.new_event_loop()
+        self._thread = threading.Thread(target=self.loop.run_forever)
+        self._thread.start()
+
+    def run[T](self, coroutine: Coroutine[object, object, T]) -> T:
+        return asyncio.run_coroutine_threadsafe(coroutine, self.loop).result(15)
+
+    def stop(self) -> None:
+        self.loop.call_soon_threadsafe(self.loop.stop)
+        self._thread.join()
+        self.loop.close()
+
+
+def test_given_a_connected_session_when_shut_down_from_another_thread_then_it_is_closed() -> None:
+    """Pins F-L47-33: the app can close the session at exit without being on the session's loop."""
+    runner = _LoopThread()
+    try:
+        session = McpSdkSession(_make_server())
+        runner.run(session.connect())
+        session.shutdown()
+        # Shutdown waits: nothing of the session, including its background task, is still running.
+        assert runner.run(_other_tasks()) == 0
+        with pytest.raises(RuntimeError, match="Not connected"):
+            runner.run(session.list_tools())
+    finally:
+        runner.stop()
+
+
+def test_given_a_session_never_connected_when_shut_down_then_nothing_breaks() -> None:
+    McpSdkSession(_make_server()).shutdown()
+
+
+def test_given_a_session_shut_down_twice_when_the_second_runs_then_nothing_breaks() -> None:
+    runner = _LoopThread()
+    try:
+        session = McpSdkSession(_make_server())
+        runner.run(session.connect())
+        session.shutdown()
+        session.shutdown()
+    finally:
+        runner.stop()
+
+
+@pytest.mark.filterwarnings("ignore:coroutine 'McpSdkSession.close' was never awaited")
+def test_given_the_sessions_loop_has_stopped_when_shut_down_then_it_gives_up_without_raising() -> (
+    None
+):
+    """A page that is already gone cannot be asked to close; exit must not hang or crash."""
+    runner = _LoopThread()
+    session = McpSdkSession(_make_server())
+    runner.run(session.connect())
+    runner.loop.call_soon_threadsafe(runner.loop.stop)
+    runner._thread.join()
+    try:
+        session.shutdown(timeout_seconds=0.3)
+    finally:
+        runner.loop.close()

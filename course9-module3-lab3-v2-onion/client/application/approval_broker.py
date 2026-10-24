@@ -38,6 +38,7 @@ class ApprovalBroker(ApprovalSourceInterface):
         self._timeout_seconds = timeout_seconds
         self._lock = threading.Lock()
         self._waiting: deque[_Waiting] = deque()
+        self._turn_running = False
 
     async def decide(self, message: str) -> ApprovalAnswer:
         loop = asyncio.get_running_loop()
@@ -52,6 +53,18 @@ class ApprovalBroker(ApprovalSourceInterface):
             with self._lock:
                 if entry in self._waiting:
                     self._waiting.remove(entry)
+
+    def begin_turn(self) -> bool:
+        """Claim the session's one ordinary turn. False means a turn is already running."""
+        with self._lock:
+            if self._turn_running:
+                return False
+            self._turn_running = True
+            return True
+
+    def end_turn(self) -> None:
+        with self._lock:
+            self._turn_running = False
 
     def waiting_count(self) -> int:
         """How many questions the broker is still holding: answered, timed-out and abandoned

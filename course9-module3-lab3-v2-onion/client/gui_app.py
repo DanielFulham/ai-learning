@@ -9,6 +9,7 @@ from application.interfaces.approval_desk_interface import ApprovalDeskInterface
 from application.interfaces.gui_service_interface import GuiServiceInterface
 from cli_arguments import parse_arguments
 from domain.approval import ApprovalChoice
+from page_lifecycle import serve
 from page_session import forget_session, session_id
 
 _NO_QUESTION = "No question is waiting."
@@ -191,8 +192,11 @@ The server decides what runs. When a tool needs your approval, the question appe
 
 def main() -> None:
     app = initialise_gui(parse_arguments(sys.argv))
-    build_interface(app.service, app.desks).queue().launch(
-        server_name=config.UI_HOST, server_port=config.GUI_PORT
+    serve(
+        build_interface(app.service, app.desks),
+        app.shutdown,
+        config.UI_HOST,
+        config.GUI_PORT,
     )
 
 

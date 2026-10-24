@@ -239,3 +239,35 @@ def test_given_a_link_pointing_outside_the_root_when_read_then_it_is_refused(
         pytest.skip("this machine does not allow creating symbolic links")
     with pytest.raises(PathOutsideRootError):
         store.read_text("link.txt")
+
+
+def test_given_a_new_folder_that_leaves_the_root_while_it_is_created_when_written_then_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Pins F-L47-34: the root check is repeated after the parent folders exist.
+
+    The first check happens before the folders are created, so another process could swap a new
+    folder for a link to somewhere else in between. Here the swap is simulated: once the folder
+    has been created, resolving it reports a place outside the root.
+    """
+    root, outside = tmp_path / "root", tmp_path / "outside"
+    outside.mkdir()
+    store = LocalFileStore(root)
+    real_mkdir, real_resolve = Path.mkdir, Path.resolve
+    created: list[bool] = []
+
+    def mkdir_then_note(self: Path, parents: bool = False, exist_ok: bool = False) -> None:
+        real_mkdir(self, parents=parents, exist_ok=exist_ok)
+        created.append(True)
+
+    def resolve_as_if_swapped(self: Path, strict: bool = False) -> Path:
+        if created and self.name == "newdir":
+            return outside
+        return real_resolve(self, strict=strict)
+
+    monkeypatch.setattr(Path, "mkdir", mkdir_then_note)
+    monkeypatch.setattr(Path, "resolve", resolve_as_if_swapped)
+    with pytest.raises(PathOutsideRootError):
+        store.write_text("newdir/file.txt", "TEST")
+    assert not (root / "newdir" / "file.txt").exists()
+    assert list(outside.iterdir()) == []

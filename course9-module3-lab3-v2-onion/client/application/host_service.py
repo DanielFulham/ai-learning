@@ -174,6 +174,8 @@ class HostService:
         # The prompt's arguments belong in the `arguments` object. A model may also put them
         # beside `name`, so those are accepted when the object is empty.
         nested = arguments.get("arguments")
+        if nested is not None and not isinstance(nested, dict):
+            return f"Error: the prompt's arguments must be an object, not {nested!r}"
         if isinstance(nested, dict) and nested:
             raw_arguments: dict[object, object] = nested
         else:

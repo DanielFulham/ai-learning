@@ -22,6 +22,10 @@ class LocalFileStore(FileStoreInterface):
     Every path is resolved first and must land inside the root, so `..`, absolute paths and
     links that point elsewhere are refused. Only files are handled: a folder, including the
     root itself, is never read, written or deleted. Errors name the relative path only.
+
+    Not covered: the path is checked, then used, so a link swapped in during the instant between
+    the second check and the write is not caught. That needs another process with write access
+    inside the root, and closing it needs no-follow file opens that Windows does not offer.
     """
 
     def __init__(self, root: Path) -> None:
@@ -54,7 +58,13 @@ class LocalFileStore(FileStoreInterface):
         resolved = self._resolve_file(relative_path)
         try:
             resolved.parent.mkdir(parents=True, exist_ok=True)
-            resolved.write_text(content, encoding="utf-8")
+            # The check above ran before the folders existed. Another process could have put a
+            # link where a new folder was being made, so check again now they exist and write
+            # through the checked path.
+            parent = resolved.parent.resolve()
+            if not parent.is_relative_to(self._root):
+                raise PathOutsideRootError(f"Path is outside the server root: {relative_path}")
+            (parent / resolved.name).write_text(content, encoding="utf-8")
         except OSError as error:
             raise _without_server_path(error, relative_path) from None
 

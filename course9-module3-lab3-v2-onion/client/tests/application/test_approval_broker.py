@@ -260,3 +260,38 @@ def test_given_a_question_just_answered_when_asked_for_the_pending_one_then_ther
         return pending
 
     assert asyncio.run(run()) is None
+
+
+def test_given_no_turn_running_when_one_begins_then_it_is_allowed() -> None:
+    assert ApprovalBroker().begin_turn() is True
+
+
+def test_given_a_turn_running_when_another_begins_then_it_is_refused() -> None:
+    """Pins F-L47-32: one ordinary turn per session, so two cannot overwrite each other."""
+    broker = ApprovalBroker()
+    broker.begin_turn()
+    assert broker.begin_turn() is False
+
+
+def test_given_a_turn_that_ended_when_another_begins_then_it_is_allowed() -> None:
+    broker = ApprovalBroker()
+    broker.begin_turn()
+    broker.end_turn()
+    assert broker.begin_turn() is True
+
+
+def test_given_two_threads_beginning_a_turn_at_once_when_both_try_then_only_one_wins() -> None:
+    broker = ApprovalBroker()
+    results: list[bool] = []
+    barrier = threading.Barrier(8)
+
+    def attempt() -> None:
+        barrier.wait()
+        results.append(broker.begin_turn())
+
+    threads = [threading.Thread(target=attempt) for _ in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert results.count(True) == 1
