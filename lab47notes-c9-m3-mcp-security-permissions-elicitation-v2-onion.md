@@ -96,7 +96,6 @@ Python from my shell could not verify `api.openai.com` (the same TLS inspection)
 
 ## What this doesn't cover
 
-- A browser: both pages were driven through `gradio_client`, so the panel's polling and the host's streamed question were not seen on screen.
 - A replay with changed arguments over the wire, `read_file` on a UTF-16 file, a second real browser tab, and running from Git Bash.
 - The resources default to `allow`: the audit log, which lists arguments, is readable out of the box. Set `read_audit_log` to `ask` or `deny` to change that.
 - Stopping a standalone server: Ctrl+C prints a traceback, and a stop signal sent while the client's pipe is still open did not end the process on Windows in my probe. The client stops the server by closing the pipe, which exits cleanly. I tried handling stop signals and dropped it; it is not resolved.
