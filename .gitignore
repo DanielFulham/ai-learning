@@ -30,4 +30,3 @@ agent-primitive-gaps-post-c9-review.md
 
 # Ruff / linting caches (generated per-lab, never committed)
 .ruff_cache/
-
