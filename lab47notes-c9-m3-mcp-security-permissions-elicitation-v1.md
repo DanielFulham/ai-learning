@@ -2,7 +2,7 @@
 
 > Code: [`course9-module3-lab3-v1-canonical/`](course9-module3-lab3-v1-canonical/)
 
-The lab's code as written, in four files: a FastMCP server with four risk-tiered tools, a base client that applies allow, deny and ask policies and writes an audit log, a Gradio client app and a Gradio AI host app that lets `gpt-4o-mini` call the tools. Only what Ruff and Pyright forced was changed, and each change is listed below. There is no onion-architecture port for this lab.
+The lab's code as written, in four files: a FastMCP server with four risk-tiered tools, a base client that applies allow, deny and ask policies and writes an audit log, a Gradio client app and a Gradio AI host app that lets `gpt-4o-mini` call the tools. Only what Ruff and Pyright forced was changed, and each change is listed below. The onion-architecture rebuild, with these findings fixed, is in [V2](lab47notes-c9-m3-mcp-security-permissions-elicitation-v2-onion.md).
 
 This is IBM Skills Network's "MCP Security with Permissions and Elicitation" lab (the lab text is not included here) on Windows. The lab is built for Python 3.11; this folder runs on 3.13.13.
 
