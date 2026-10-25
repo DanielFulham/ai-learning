@@ -85,8 +85,9 @@ class PermissionGate:
                 self._record(tool, arguments_json, AuditEvent.DENIED, "too many open questions")
                 return Refuse(f"Too many approvals are waiting, so {tool} was not run.")
             issued = secrets.token_urlsafe(32)
-            self._pending[issued] = (tool, arguments_json, self._clock() + self._ttl_seconds)
+            # Record first: if the log fails, no token has been handed out yet.
             self._record(tool, arguments_json, AuditEvent.APPROVAL_REQUESTED, "policy: ask")
+            self._pending[issued] = (tool, arguments_json, self._clock() + self._ttl_seconds)
             return AskUser(f"Run {tool} with arguments {arguments_json}?", issued)
         if not approved_by_token:
             detail = "the approval is missing, used, expired or for different arguments"

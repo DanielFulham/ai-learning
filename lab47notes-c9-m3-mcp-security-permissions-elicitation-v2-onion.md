@@ -2,7 +2,7 @@
 
 > Code: [`course9-module3-lab3-v2-onion/`](course9-module3-lab3-v2-onion/)
 
-[V1](lab47notes-c9-m3-mcp-security-permissions-elicitation-v1.md) is the lab as written, with 18 findings. This is the same system as two separate onion-layered apps on the latest versions, with those findings fixed from the start: a FastMCP server that enforces the policy itself and asks the user through MCP elicitation, and a client with a Gradio page and a Gradio chat host for `gpt-4o-mini`. 507 tests pass without a key or a network: 241 on the server (242 collected, one skipped) and 266 on the client.
+[V1](lab47notes-c9-m3-mcp-security-permissions-elicitation-v1.md) is the lab as written, with 18 findings. This is the same system as two separate onion-layered apps on the latest versions, with those findings fixed from the start: a FastMCP server that enforces the policy itself and asks the user through MCP elicitation, and a client with a Gradio page and a Gradio chat host for `gpt-4o-mini`. 509 tests pass without a key or a network: 243 on the server (244 collected, one skipped) and 266 on the client.
 
 The most useful result: `ctx.elicit` does not work on the 2026-07-28 protocol, which the latest SDKs negotiate by default. A tool now returns an "input required" result, the client answers and retries, and the approval can be bound to the exact arguments the user was shown (F-L47-19, F-L47-21).
 
@@ -101,6 +101,8 @@ Other differences: the GUI's "Approve & Execute" is a panel showing the waiting 
 **F-L47-36 - Clear left a hidden question answerable.** Clearing the host chat emptied the page but not the session's waiting question, so the next bare "yes" could approve a question the user could no longer see. Clear now cancels the session's waiting question first, and only that session's. Tested at the handler and on the built page.
 
 **F-L47-37 - audit log write errors leaked the server path.** If the log or its folder could not be opened, the OS error, with the absolute path in it, went back to the client from the pre-run record. Writing the log now reports only the file name and the kind of failure, as reading it does. Two tests failed first.
+
+**F-L47-38 - a question that could not be logged still had a live token.** The gate stored the token and then wrote the "approval requested" line, so a failed write left a usable token (and a used slot toward the cap) behind a request the caller saw fail. It now writes the line first and stores the token after. Two tests failed first.
 
 ## Tests
 

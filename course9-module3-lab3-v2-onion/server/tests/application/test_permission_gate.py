@@ -429,3 +429,23 @@ def test_given_a_token_declined_under_deny_when_ask_returns_then_accept_is_refus
     _decide(gate, ApprovalOutcome.DECLINED, token)
     store.load_rules.return_value = {"TEST_TOOL": "ask"}
     assert isinstance(_decide(gate, ApprovalOutcome.ACCEPTED, token), Refuse)
+
+
+def test_given_the_log_fails_when_a_question_is_asked_then_no_token_is_left_alive() -> None:
+    """Pins F-L47-38: a question that could not be recorded must not leave a usable token."""
+    gate = _make_gate("ask", _audit_failing_on("approval_requested"))
+    with pytest.raises(OSError, match="TEST_DISK_FULL"):
+        _decide(gate)
+    assert gate.pending_count() == 0
+
+
+def test_given_the_log_fails_when_a_question_is_asked_then_it_does_not_use_up_the_cap() -> None:
+    gate = PermissionGate(
+        _make_policy_book({"TEST_TOOL": "ask"}),
+        _audit_failing_on("approval_requested"),
+        max_pending=1,
+    )
+    for _ in range(3):
+        with pytest.raises(OSError, match="TEST_DISK_FULL"):
+            _decide(gate)
+    assert gate.pending_count() == 0
