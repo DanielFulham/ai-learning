@@ -385,3 +385,47 @@ def test_given_the_log_fails_before_the_tool_when_decided_then_the_call_is_not_a
     gate = _make_gate("allow", _audit_failing_on("allowed"))
     with pytest.raises(OSError, match="TEST_DISK_FULL"):
         _decide(gate)
+
+
+# --- a token is spent by any use, whatever the policy says now --------------------------------
+
+
+def _gate_with_changing_policy(
+    first: str,
+) -> tuple[PermissionGate, MagicMock]:
+    store = MagicMock(spec=PolicyStoreInterface)
+    store.load_rules.return_value = {"TEST_TOOL": first}
+    return PermissionGate(PolicyBook(store), _make_audit()), store
+
+
+@pytest.mark.parametrize("later_policy", ["deny", "allow"])
+def test_given_a_token_used_while_the_policy_is_not_ask_when_ask_returns_then_it_is_gone(
+    later_policy: str,
+) -> None:
+    """Pins F-L47-35: the policy is read on every call, so a stale answer must not outlive it."""
+    gate, store = _gate_with_changing_policy("ask")
+    token = _token_for(gate)
+    store.load_rules.return_value = {"TEST_TOOL": later_policy}
+    _decide(gate, ApprovalOutcome.ACCEPTED, token)
+    store.load_rules.return_value = {"TEST_TOOL": "ask"}
+    assert isinstance(_decide(gate, ApprovalOutcome.ACCEPTED, token), Refuse)
+
+
+def test_given_a_token_used_while_the_policy_is_unreadable_when_fixed_then_it_is_gone() -> None:
+    gate, store = _gate_with_changing_policy("ask")
+    token = _token_for(gate)
+    store.load_rules.side_effect = InvalidPolicyError("TEST_BAD_FILE")
+    _decide(gate, ApprovalOutcome.ACCEPTED, token)
+    store.load_rules.side_effect = None
+    store.load_rules.return_value = {"TEST_TOOL": "ask"}
+    assert isinstance(_decide(gate, ApprovalOutcome.ACCEPTED, token), Refuse)
+
+
+def test_given_a_token_declined_under_deny_when_ask_returns_then_accept_is_refused() -> None:
+    """The case Copilot described: a decline, then a policy flip, then the same token accepted."""
+    gate, store = _gate_with_changing_policy("ask")
+    token = _token_for(gate)
+    store.load_rules.return_value = {"TEST_TOOL": "deny"}
+    _decide(gate, ApprovalOutcome.DECLINED, token)
+    store.load_rules.return_value = {"TEST_TOOL": "ask"}
+    assert isinstance(_decide(gate, ApprovalOutcome.ACCEPTED, token), Refuse)

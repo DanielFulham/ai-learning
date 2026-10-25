@@ -91,6 +91,13 @@ async def guarded_chat_turn(
         desk.end_turn()
 
 
+def reset_chat(desk: ApprovalDeskInterface) -> tuple[Shown, tuple[Message, ...]]:
+    """Empty the chat and its history. A question still waiting is cancelled first: once the chat
+    is cleared the user can no longer see it, so a later "yes" must not approve it."""
+    desk.cancel_all()
+    return [], ()
+
+
 def build_interface(service: HostServiceInterface, desks: ApprovalDesks) -> gr.Blocks:
     """The chat page. Gradio lives here and nowhere deeper."""
 
@@ -108,8 +115,8 @@ def build_interface(service: HostServiceInterface, desks: ApprovalDesks) -> gr.B
             else:
                 yield step
 
-    async def reset_conversation() -> tuple[Shown, tuple[Message, ...]]:
-        return [], ()
+    async def reset_conversation(request: gr.Request) -> tuple[Shown, tuple[Message, ...]]:
+        return reset_chat(desks.desk_for(session_id(request)))
 
     def close_page(request: gr.Request) -> None:
         forget_session(desks, request)

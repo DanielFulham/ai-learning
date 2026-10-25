@@ -4,11 +4,13 @@ from unittest.mock import MagicMock
 import gradio as gr
 import pytest
 
+from application.approval_broker import ApprovalBroker
 from application.approval_desks import ApprovalDesks
 from application.interfaces.approval_desk_interface import ApprovalDeskInterface
 from application.interfaces.host_service_interface import HostServiceInterface
+from domain.approval import ApprovalChoice
 from domain.conversation import ChatReply, Message, ToolActivity
-from host_app import build_interface, chat_turn, guarded_chat_turn
+from host_app import build_interface, chat_turn, guarded_chat_turn, reset_chat
 
 _EARLIER = (Message(role="user", text="TEST_EARLIER"),)
 Shown = list[dict[str, str | None]]
@@ -185,3 +187,49 @@ def test_given_a_question_waiting_when_a_message_arrives_then_it_is_an_answer_an
     assert steps[-1] is not None
     service.chat.assert_awaited_once()
     desk.begin_turn.assert_not_called()
+
+
+def test_given_a_chat_when_it_is_cleared_then_the_page_and_the_history_are_emptied() -> None:
+    assert reset_chat(_make_desk()) == ([], ())
+
+
+def test_given_a_question_waiting_when_the_chat_is_cleared_then_the_desk_cancels_it() -> None:
+    """Pins F-L47-36: a hidden old question must not stay answerable by the next bare "yes"."""
+    desk = _make_desk(pending="TEST_QUESTION")
+    reset_chat(desk)
+    desk.cancel_all.assert_called_once_with()
+
+
+def test_given_a_real_waiting_question_when_the_chat_is_cleared_then_the_call_gets_cancel() -> None:
+    async def run() -> tuple[str, str | None, bool]:
+        broker = ApprovalBroker()
+        task = asyncio.create_task(broker.decide("TEST_QUESTION"))
+        for _ in range(3):
+            await asyncio.sleep(0)
+        reset_chat(broker)
+        answer = await asyncio.wait_for(task, 1)
+        return answer, broker.pending_message(), broker.respond(ApprovalChoice.ACCEPT)
+
+    assert asyncio.run(run()) == ("cancel", None, False)
+
+
+def test_given_the_clear_button_when_clicked_then_that_sessions_question_is_cancelled() -> None:
+    """Pins F-L47-36 on the page itself: the Clear handler uses the clicking session's desk."""
+    desks = ApprovalDesks()
+    page = build_interface(MagicMock(spec=HostServiceInterface), desks)
+    clear = next(f.fn for f in page.fns.values() if f.fn and f.fn.__name__ == "reset_conversation")
+
+    async def run() -> tuple[str, str | None]:
+        desk = desks.desk_for("TEST_HASH")
+        other = desks.desk_for("TEST_OTHER")
+        task = asyncio.create_task(desk.decide("TEST_QUESTION"))
+        other_task = asyncio.create_task(other.decide("TEST_OTHER_QUESTION"))
+        for _ in range(3):
+            await asyncio.sleep(0)
+        await clear(gr.Request(session_hash="TEST_HASH"))
+        answer = await asyncio.wait_for(task, 1)
+        still_waiting = other.pending_message()
+        other_task.cancel()
+        return answer, still_waiting
+
+    assert asyncio.run(run()) == ("cancel", "TEST_OTHER_QUESTION")

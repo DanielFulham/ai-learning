@@ -22,9 +22,9 @@ class PermissionGate:
     When the policy says ask, `decide` returns an `AskUser` carrying a random token that the gate
     remembers, with the tool and arguments it was issued for. The client's answer comes back on a
     retry with that token. A token works once, for those exact arguments, within `ttl_seconds`;
-    any use spends it, and an unknown, spent, expired or mismatched token is refused. At most
-    `max_pending` questions are held, so unanswered ones cannot grow memory without limit. There
-    is no "approved" flag a caller can pass.
+    any use spends it, even one the policy then refuses, and an unknown, spent, expired or
+    mismatched token is refused. At most `max_pending` questions are held, so unanswered ones
+    cannot grow memory without limit. There is no "approved" flag a caller can pass.
 
     The audit record of an intent (allowed, asked, approved, refused) is written before the tool
     runs, and a failure there stops the call. The record of how the tool ended is written after;
@@ -62,6 +62,10 @@ class PermissionGate:
         token: str | None,
     ) -> GateDecision:
         arguments_json = json.dumps(arguments, sort_keys=True)
+        # Any token that is presented is used up, whatever the policy turns out to say. The policy
+        # is read on every call, so a token left alive after a deny could be used if the rule
+        # were later changed back to ask.
+        approved_by_token = self._spend(token, tool, arguments_json)
         try:
             policy = self._policy_book.policy_for(tool)
         except InvalidPolicyError as error:
@@ -84,7 +88,7 @@ class PermissionGate:
             self._pending[issued] = (tool, arguments_json, self._clock() + self._ttl_seconds)
             self._record(tool, arguments_json, AuditEvent.APPROVAL_REQUESTED, "policy: ask")
             return AskUser(f"Run {tool} with arguments {arguments_json}?", issued)
-        if not self._spend(token, tool, arguments_json):
+        if not approved_by_token:
             detail = "the approval is missing, used, expired or for different arguments"
             self._record(tool, arguments_json, AuditEvent.DENIED, detail)
             return Refuse(

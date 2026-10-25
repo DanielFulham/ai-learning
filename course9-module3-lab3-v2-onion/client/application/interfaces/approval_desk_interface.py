@@ -23,6 +23,10 @@ class ApprovalDeskInterface(ApprovalSourceInterface, Protocol):
         """Give the turn back, whether it finished or failed."""
         ...
 
+    def cancel_all(self) -> None:
+        """Answer every waiting question with cancel."""
+        ...
+
     def respond(self, choice: ApprovalChoice) -> bool:
         """Answer the oldest waiting question. False means nothing was waiting."""
         ...

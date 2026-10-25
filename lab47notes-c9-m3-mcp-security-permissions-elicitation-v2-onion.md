@@ -2,7 +2,7 @@
 
 > Code: [`course9-module3-lab3-v2-onion/`](course9-module3-lab3-v2-onion/)
 
-[V1](lab47notes-c9-m3-mcp-security-permissions-elicitation-v1.md) is the lab as written, with 18 findings. This is the same system as two separate onion-layered apps on the latest versions, with those findings fixed from the start: a FastMCP server that enforces the policy itself and asks the user through MCP elicitation, and a client with a Gradio page and a Gradio chat host for `gpt-4o-mini`. 497 tests pass without a key or a network: 235 on the server (236 collected, one skipped) and 262 on the client.
+[V1](lab47notes-c9-m3-mcp-security-permissions-elicitation-v1.md) is the lab as written, with 18 findings. This is the same system as two separate onion-layered apps on the latest versions, with those findings fixed from the start: a FastMCP server that enforces the policy itself and asks the user through MCP elicitation, and a client with a Gradio page and a Gradio chat host for `gpt-4o-mini`. 505 tests pass without a key or a network: 239 on the server (240 collected, one skipped) and 266 on the client.
 
 The most useful result: `ctx.elicit` does not work on the 2026-07-28 protocol, which the latest SDKs negotiate by default. A tool now returns an "input required" result, the client answers and retries, and the approval can be bound to the exact arguments the user was shown (F-L47-19, F-L47-21).
 
@@ -94,7 +94,11 @@ Other differences: the GUI's "Approve & Execute" is a panel showing the waiting 
 
 **F-L47-33 - the MCP session was never closed at exit.** `serve` now launches without blocking, waits, and on a stop closes the session and then the page, because the session lives on the page's event loop. Seen in a real run (real server over stdio, stop simulated by raising `KeyboardInterrupt` in the wait): two server processes while running, none after. A real Ctrl+C, a terminal close and a kill were not tried. The host also rejects a non-object `arguments` field for the prompt helper instead of replacing it with an empty one.
 
-**F-L47-34 - parent folders were created after the root check.** Another process could swap a new folder for a link in between. `write_text` now checks the root again once the folders exist and writes through the checked path. Tested by simulating the swap, since links cannot be made here without privileges. A swap in the instant between that check and the write is not covered, and closing it needs no-follow file opens that Windows does not offer.
+**F-L47-34 - parent folders were created after the root check.** Another process could swap a new folder for a link in between. `write_text` now checks the root again once the folders exist and writes through the checked path. Tested by simulating the swap, since links cannot be made here without privileges. The write itself still follows whatever is at the final path when it runs, so a link swapped in during that instant is not caught. Closing that needs no-follow file opens, which Windows does not offer and which I could not test here. The stated threat model is instead that no other process writes inside the tool root while the server runs; the root is a folder the server owns.
+
+**F-L47-35 - a refused call left its approval token alive.** The policy is read on every call. A token presented while the rule was `deny` (or the policy file was unreadable) was not spent, so changing the rule back to `ask` before it expired let the same token be accepted, even after a decline. Any presented token is now spent before the policy is looked at. Three tests failed first.
+
+**F-L47-36 - Clear left a hidden question answerable.** Clearing the host chat emptied the page but not the session's waiting question, so the next bare "yes" could approve a question the user could no longer see. Clear now cancels the session's waiting question first, and only that session's. Tested at the handler and on the built page.
 
 ## Tests
 
@@ -114,6 +118,7 @@ Python from my shell could not verify `api.openai.com` (the same TLS inspection)
 
 - `read_file` on a UTF-16 file, a second real browser tab, closing a real tab, and running from Git Bash.
 - Stopping the page apps: only a simulated stop was run (F-L47-33), not a real Ctrl+C, a closed terminal or a kill. The host's "still working" warning was not seen in a running page.
+- A link swapped in at the final path during a write, by another process with write access inside the tool root (F-L47-34).
 - Client trust: the server cannot tell a person's answer from a client's. Anything that can talk to the server and holds a live token can accept.
 - Stopping a standalone server: Ctrl+C prints a traceback, and a stop signal sent while the client's pipe is still open did not end the process on Windows in my probe. The client stops the server by closing the pipe, which exits cleanly. I tried handling stop signals and dropped it; it is not resolved.
 - Authentication and HTTPS: the server is a local stdio subprocess for one user.
