@@ -29,9 +29,12 @@ class FileAuditLog(AuditLogInterface):
             "event": event,
             "detail": detail,
         }
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        with self._path.open("a", encoding="utf-8") as log_file:
-            log_file.write(json.dumps(entry) + "\n")
+        try:
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            with self._path.open("a", encoding="utf-8") as log_file:
+                log_file.write(json.dumps(entry) + "\n")
+        except OSError as error:
+            raise self._without_path(error, "written to") from None
 
     def read_text(self) -> str:
         try:
@@ -39,7 +42,13 @@ class FileAuditLog(AuditLogInterface):
         except FileNotFoundError:
             return ""
         except OSError as error:
-            # The OS message carries the absolute path, so only the kind of failure is reported.
-            raise OSError(
-                f"The audit log {self._path.name} could not be read ({type(error).__name__})"
-            ) from None
+            raise self._without_path(error, "read") from None
+
+    def _without_path(self, error: OSError, action: str) -> OSError:
+        """An error naming the log file and the kind of failure, but not where the file lives.
+
+        The operating system's own message carries the absolute path, which would tell any
+        client where the server keeps its state.
+        """
+        name = self._path.name
+        return OSError(f"The audit log {name} could not be {action} ({type(error).__name__})")

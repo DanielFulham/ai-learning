@@ -131,3 +131,22 @@ def test_given_the_log_vanishes_between_the_check_and_the_read_when_read_then_it
 
     monkeypatch.setattr(Path, "read_text", vanished)
     assert FileAuditLog(path).read_text() == ""
+
+
+def test_given_a_log_path_that_is_a_folder_when_appended_then_the_error_names_only_the_file(
+    tmp_path: Path,
+) -> None:
+    """Pins F-L47-37: a write error must not tell the client where the server keeps its state."""
+    (tmp_path / "audit.log").mkdir()
+    with pytest.raises(OSError, match="audit.log") as error:
+        FileAuditLog(tmp_path / "audit.log").append("TEST_TOOL", "{}", "allowed", "")
+    assert tmp_path.name not in str(error.value)
+
+
+def test_given_a_state_folder_that_cannot_be_made_when_appended_then_the_error_names_only_the_file(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "state").write_text("a file where the folder should be", encoding="utf-8")
+    with pytest.raises(OSError, match="audit.log") as error:
+        FileAuditLog(tmp_path / "state" / "audit.log").append("TEST_TOOL", "{}", "allowed", "")
+    assert tmp_path.name not in str(error.value)

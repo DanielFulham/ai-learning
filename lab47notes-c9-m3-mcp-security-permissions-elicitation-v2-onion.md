@@ -2,7 +2,7 @@
 
 > Code: [`course9-module3-lab3-v2-onion/`](course9-module3-lab3-v2-onion/)
 
-[V1](lab47notes-c9-m3-mcp-security-permissions-elicitation-v1.md) is the lab as written, with 18 findings. This is the same system as two separate onion-layered apps on the latest versions, with those findings fixed from the start: a FastMCP server that enforces the policy itself and asks the user through MCP elicitation, and a client with a Gradio page and a Gradio chat host for `gpt-4o-mini`. 505 tests pass without a key or a network: 239 on the server (240 collected, one skipped) and 266 on the client.
+[V1](lab47notes-c9-m3-mcp-security-permissions-elicitation-v1.md) is the lab as written, with 18 findings. This is the same system as two separate onion-layered apps on the latest versions, with those findings fixed from the start: a FastMCP server that enforces the policy itself and asks the user through MCP elicitation, and a client with a Gradio page and a Gradio chat host for `gpt-4o-mini`. 507 tests pass without a key or a network: 241 on the server (242 collected, one skipped) and 266 on the client.
 
 The most useful result: `ctx.elicit` does not work on the 2026-07-28 protocol, which the latest SDKs negotiate by default. A tool now returns an "input required" result, the client answers and retries, and the approval can be bound to the exact arguments the user was shown (F-L47-19, F-L47-21).
 
@@ -84,7 +84,7 @@ Other differences: the GUI's "Approve & Execute" is a panel showing the waiting 
 
 **F-L47-28 - smaller review fixes.** A policy path that is a folder, or a file that vanishes mid-read, now refuses or returns no rules instead of crashing, and the error no longer carries the server's absolute path. The server refuses to start if its state folder is inside the folder the tools can reach. The code imports `mcp.types`, not the `mcp_types` package it re-exports.
 
-**F-L47-29 - Gradio answers arrive on worker threads, and the approval wait did not wake.** Found in Copilot's second review and reproduced: `respond` called from a thread left the waiting call asleep until its timeout, because an asyncio future cannot be completed from another thread. The broker now claims a question under a lock and hands the answer to the waiting loop with `call_soon_threadsafe`, so a question is answered once and the call wakes at once. Tested with a real worker thread. The same fix covers the page-close cancel. The audit log's read errors also now name the file only, as the policy store's do.
+**F-L47-29 - Gradio answers arrive on worker threads, and the approval wait did not wake.** Found in Copilot's second review and reproduced: `respond` called from a thread left the waiting call asleep until its timeout, because an asyncio future cannot be completed from another thread. The broker now claims a question under a lock and hands the answer to the waiting loop with `call_soon_threadsafe`, so a question is answered once and the call wakes at once. Tested with a real worker thread. The same fix covers the page-close cancel. The audit log's read errors also now name the file only, as the policy store's do, and so do its write errors (F-L47-37).
 
 **F-L47-30 - three more review fixes.** (a) The audit log was readable without approval by default, although it holds every call's arguments, including written file content. It now defaults to `ask`; set `read_audit_log` to `allow` to open it. (b) The audit line saying how a tool ended is written after the tool has run, so a full disk made the client see an error for a change that happened. The record of intent (allowed, asked, approved, refused) is still written first and a failure there stops the call; a failure writing the ending record now returns the result and is logged to the server's own log. The gap in the audit file is real in that case. (c) The host turned a model's non-text prompt argument into text (1 became "1"); it now returns an error to the model, as the GUI does.
 
@@ -99,6 +99,8 @@ Other differences: the GUI's "Approve & Execute" is a panel showing the waiting 
 **F-L47-35 - a refused call left its approval token alive.** The policy is read on every call. A token presented while the rule was `deny` (or the policy file was unreadable) was not spent, so changing the rule back to `ask` before it expired let the same token be accepted, even after a decline. Any presented token is now spent before the policy is looked at. Three tests failed first.
 
 **F-L47-36 - Clear left a hidden question answerable.** Clearing the host chat emptied the page but not the session's waiting question, so the next bare "yes" could approve a question the user could no longer see. Clear now cancels the session's waiting question first, and only that session's. Tested at the handler and on the built page.
+
+**F-L47-37 - audit log write errors leaked the server path.** If the log or its folder could not be opened, the OS error, with the absolute path in it, went back to the client from the pre-run record. Writing the log now reports only the file name and the kind of failure, as reading it does. Two tests failed first.
 
 ## Tests
 
