@@ -30,3 +30,18 @@ agent-primitive-gaps-post-c9-review.md
 
 # Ruff / linting caches (generated per-lab, never committed)
 .ruff_cache/
+
+# Course 10: whole lab folders stay local (IBM-derived data, lab text and code)
+course10-*/
+lab48notes-c10-m1-structure-restaurant-data-v1.md
+lab49notes-c10-m1-process-multimodal-data-v1.md
+lab50notes-c10-m1-command-line-restaurant-data-v1.md
+lab51notes-c10-m2-multimodal-vector-index-v1.md
+lab52notes-c10-m2-similarity-retrieval-v1.md
+lab53notes-c10-m2-multimodal-fusion-v1.md
+lab54notes-c10-m3-specialized-agents-v1.md
+lab55notes-c10-m3-multi-agent-system-v1.md
+lab56notes-c10-m3-chatbot-interface-v1.md
+lab57notes-c10-m4-mcp-server-v1.md
+lab58notes-c10-m4-mcp-client-v1.md
+lab59notes-c10-m4-mcp-application-v1.md
